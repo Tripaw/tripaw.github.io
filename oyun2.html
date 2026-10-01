@@ -61,12 +61,12 @@ function fin(h,a,gh,ga){[[h,gh,ga],[a,ga,gh]].forEach(([t,f,c])=>{t.up=null;t.p+
 function sorted(){return[...S.teams].sort((x,y)=>y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf)}
 function tbl(){return`<div class="tw"><table><tr><th>#<th>Takım<th>O<th>G<th>B<th>M<th>A<th>Y<th>P</tr>${sorted().map((t,i)=>`<tr class="${t.id==S.my?'me':''}"><td>${i+1}<td>${t.name}<td>${t.p}<td>${t.w}<td>${t.d}<td>${t.l}<td>${t.gf}<td>${t.ga}<td>${t.pts}</tr>`).join('')}</table></div>`}
 let sel=null;
-const win=()=>S.season==1?S.round>=7&&S.round<=11:S.round<=2,pr=p=>Math.round((p.r-55)**2/25)+1,sv=p=>Math.max(1,Math.floor(pr(p)*.6));
+const win=()=>S.round<=3||(S.round>=8&&S.round<=10),pr=p=>Math.round((p.r-55)**2/25)+1,sv=p=>Math.max(1,Math.floor(pr(p)*.6));
 function genPool(){return Array.from({length:14},()=>({n:pick(F)+' '+pick(L),pos:pick(POS),r:Math.round(rnd(58,84)),en:100}))}
 function buy(i){const p=S.pool[i],t=S.teams[S.my];if(S.money<pr(p)||t.players.length>=22)return alert(S.money<pr(p)?'Yetersiz bütçe!':'Kadro dolu (en fazla 22)!');
  S.money-=pr(p);t.players.push(p);S.pool.splice(i,1);home()}
 function sell(i){const t=S.teams[S.my],p=t.players[i];S.money+=sv(p);t.players.splice(i,1);S.pool.push(p);sel=null;home()}
-function tfCard(){if(!win())return'';return`<div class="card"><h3>🔄 Transfer Dönemi <span class="mu">(${S.season==1?'8.–12.':'1.–3.'} hafta)</span></h3><div class="mu" style="margin-bottom:6px">Alınan oyuncular yedeğe gider. Satmak için yedekteki oyuncuda "Sat" düğmesini kullan.</div>
+function tfCard(){if(!win())return'';return`<div class="card"><h3>🔄 Transfer Dönemi <span class="mu">(${S.round<=3?'1.–4.':'9.–11.'} hafta)</span></h3><div class="mu" style="margin-bottom:6px">Alınan oyuncular yedeğe gider. Satmak için yedekteki oyuncuda "Sat" düğmesini kullan.</div>
  ${S.pool.map((p,i)=>`<div class="pl" style="cursor:default"><span>${PN[p.pos][0]} · ${p.n} <b>${p.r}</b></span><button ${S.money<pr(p)?'disabled':''} onclick="buy(${i})">Al ${pr(p)}M €</button></div>`).join('')}</div>`}
 function squad(live){const t=S.teams[S.my];return`<h3>Kadro ${live?`<span class="mu">(değişiklik: ${M.subs}/5)</span>`:''}</h3>`+t.players.map((p,i)=>
  `${i==11?'<div class="mu" style="margin:6px 0">Yedekler</div>':''}<div class="pl ${sel===i?'sel':''}" onclick="clk(${i})"><span>${PN[p.pos][0]} · ${p.n} ${tg(p)}</span><span>${p.r}${!live&&win()&&i>=11&&t.players.length>13?` <button onclick="event.stopPropagation();sell(${i})">Sat +${sv(p)}M €</button>`:''}</span></div><div class="bar"><i style="width:${p.en}%"></i></div>`).join('')+`<div class="mu">Bir ilk 11 oyuncusu, sonra bir yedek seç. Cezalı (🚫) oyuncular maç başında yedeğe alınır.</div>`}
@@ -74,7 +74,7 @@ function clk(i){const t=S.teams[S.my];if(t.players[i].out)return;if(sel===null){
  if(a<11&&b>=11){if(t.players[b].sus>0){alert('Bu oyuncu cezalı, oynayamaz!');sel=null;return}if(M&&M.subs>=5){alert('En fazla 5 değişiklik!');sel=null;return}
   [t.players[a],t.players[b]]=[t.players[b],t.players[a]];if(M){M.subs++;log(`🔁 ${t.players[b].n} çıktı, ${t.players[a].n} girdi`)}}sel=null}
  M?live():home()}
-function home(){const my=S.teams[S.my];if(S.round>=18)return end();if(win()&&!S.pool)S.pool=genPool();
+function home(){const my=S.teams[S.my];if(S.round>=18)return end();if(win()){if(!S.pool)S.pool=genPool()}else S.pool=null;
  const [h,a]=S.fx[S.round].find(m=>m.includes(S.my));
  $('app').innerHTML=`<h1>⚽ ${my.name} <span class="mu">💰 ${S.money}M €</span></h1><div class="card"><h3>Sezon ${S.season} · Hafta ${S.round+1}/18</h3><div>${S.teams[h].name} - ${S.teams[a].name}</div><br><button class="p" onclick="kickoff()">Maça Çık</button></div>
  ${S.news&&S.news.length?`<div class="card"><h3>📰 Sezon Başı Haberleri</h3>${S.news.map(x=>`<div>${x}</div>`).join('')}</div>`:''}${tfCard()}<div class="grid"><div class="card">${squad(false)}</div><div class="card"><h3>Puan Durumu</h3>${tbl()}</div></div>`}
@@ -96,7 +96,7 @@ function after(){fin(M.h,M.a,M.g[0],M.g[1]);const res=[];
  S.fx[S.round].forEach(([h,a])=>{if(h==M.h.id)return;const H=S.teams[h],A=S.teams[a];H.tac=A.tac='D';H.players.forEach(p=>p.en=100);A.players.forEach(p=>p.en=100);
   prep(H);prep(A);let g=[0,0];for(let m=0;m<90;m++){const x=step(H,A);g[0]+=x.g[0];g[1]+=x.g[1]}fin(H,A,g[0],g[1]);post(H);post(A);res.push(`${H.name} ${g[0]}-${g[1]} ${A.name}`)});
  post(M.h);post(M.a);S.teams.forEach(t=>t.players.forEach(p=>p.en=100));S.round++;
- const r=M;M=null;const mg=r.h.id==S.my?[r.g[0],r.g[1]]:[r.g[1],r.g[0]],earn=mg[0]>mg[1]?5:mg[0]==mg[1]?2:0;S.money+=earn;$('app').innerHTML=`<h1>Maç Sonu</h1><div class="card"><div class="score">${r.h.name} ${r.g[0]} - ${r.g[1]} ${r.a.name}</div><p style="text-align:center">💰 +${earn}M € kazandın (galibiyet 5, beraberlik 2)</p>${S.teams[S.my].up?`<p style="text-align:center">📈 ${S.teams[S.my].up} +1 gelişti</p>`:''}${S.season==1&&S.round==7?'<p style="text-align:center"><b>🔄 Transfer dönemi başladı!</b></p>':''}</div>
+ const r=M;M=null;const mg=r.h.id==S.my?[r.g[0],r.g[1]]:[r.g[1],r.g[0]],earn=mg[0]>mg[1]?5:mg[0]==mg[1]?2:0;S.money+=earn;$('app').innerHTML=`<h1>Maç Sonu</h1><div class="card"><div class="score">${r.h.name} ${r.g[0]} - ${r.g[1]} ${r.a.name}</div><p style="text-align:center">💰 +${earn}M € kazandın (galibiyet 5, beraberlik 2)</p>${S.teams[S.my].up?`<p style="text-align:center">📈 ${S.teams[S.my].up} +1 gelişti</p>`:''}${S.round==8?'<p style="text-align:center"><b>🔄 Transfer dönemi başladı!</b></p>':''}</div>
  <div class="grid"><div class="card"><h3>Diğer Sonuçlar</h3>${res.map(x=>`<div>${x}</div>`).join('')}</div><div class="card"><h3>Puan Durumu</h3>${tbl()}</div></div>
  <button class="p" onclick="home()">Devam</button>`}
 function live(){const my=S.teams[S.my],T=(k,l)=>`<button class="${my.tac==k?'on':''}" onclick="tac('${k}')">${l}</button>`;
@@ -112,7 +112,7 @@ function spd(){M.spd=M.spd<150?450:M.spd<300?100:220;clearInterval(M.tm);M.tm=se
 function end(){const s=sorted(),pos=s.findIndex(t=>t.id==S.my)+1;
  if(!S.prized){S.lastPz=[0,30,20,12,6,6][pos]??2;S.money+=S.lastPz;S.hist.push({s:S.season,pos});S.prized=true}
  $('app').innerHTML=`<h1>Sezon ${S.season} Bitti 🏆</h1><div class="card"><h3>Şampiyon: ${s[0].name}</h3><p>${S.teams[S.my].name} ${pos}. sırada bitirdi.</p>
- <p>💰 Sezon sonu ödülü: +${S.lastPz}M € · Bakiye: ${S.money}M €</p><p class="mu">Sonraki sezon aynı kadroyla devam edersin. Transfer dönemi 1.–3. haftalarda.</p>
+ <p>💰 Sezon sonu ödülü: +${S.lastPz}M € · Bakiye: ${S.money}M €</p><p class="mu">Sonraki sezon aynı kadroyla devam edersin. Her sezon iki transfer dönemi var: 1.–4. ve 9.–11. haftalar.</p>
  <p>Geçmiş: ${S.hist.map(h=>`S${h.s}: ${h.pos}.`).join(' · ')}</p><button class="p" onclick="next()">Sezon ${S.season+1}'e Geç</button> <button onclick="menu()">Ana Menü</button></div><div class="card">${tbl()}</div>`}
 function menu(){$('app').innerHTML=`<h1>⚽ Lig Menajeri</h1><p class="mu">Kurgusal takımlar ve oyuncularla 10 takımlı lig. Takımını seç, kadronu yönet, maç içinde atak/defans talimatı ver ve oyuncu değiştir.</p><div class="grid">${TN.map((n,i)=>`<button onclick="start(${i})">${n}</button>`).join('')}</div>`}
 menu();
