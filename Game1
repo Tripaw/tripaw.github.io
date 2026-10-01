@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Kurye 3D</title>
+<style>
+:root{--card:rgba(15,20,28,.85);--fg:#fff;--ac:#ffb020;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;overflow:hidden;background:#9ec9ee;color:var(--fg);font-family:system-ui,sans-serif;touch-action:none;user-select:none}
+canvas{display:block}
+.hud{position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}
+.c{background:var(--card);border-radius:10px;padding:7px 11px;font-size:14px}
+button{font:inherit;color:#111;background:var(--ac);border:0;border-radius:8px;padding:6px 12px;cursor:pointer;pointer-events:auto}
+#arrow{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 100px);margin-left:-36px;width:72px;height:72px;color:#33ff77;filter:drop-shadow(0 2px 4px #000)}
+#toast{position:fixed;left:50%;top:40%;transform:translateX(-50%);font-size:22px;font-weight:700;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .3s;text-align:center;pointer-events:none}
+#shop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center}
+#shop>div{background:#1b2330;border-radius:14px;padding:16px;width:min(420px,92vw)}
+.row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #334}
+#pad{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:none;justify-content:space-between;padding:0 14px;pointer-events:none}
+#pad div{display:flex;gap:10px}
+#pad b{pointer-events:auto;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:26px}
+#help{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);left:8px;font-size:12px;background:var(--card);padding:5px 9px;border-radius:8px}
+</style></head><body>
+<div class="hud"><div class="c" id="m">₺0</div><div class="c" id="vh"></div><div class="c" id="tk"></div><div class="c" id="sp"></div><button onclick="shop(1)">🏪 Garaj (B)</button></div>
+<div class="c" id="task" style="position:fixed;left:8px;top:calc(env(safe-area-inset-top,0px) + 56px);max-width:40vw"></div>
+<div id="arrow"><svg viewBox="0 0 60 60" width="72" height="72"><path d="M30 3 52 30H37V57H23V30H8Z" fill="currentColor" stroke="#000" stroke-width="3" stroke-linejoin="round"/></svg></div><div id="toast"></div>
+<div id="help">W/↑ gaz · S/↓ fren · A D / ← → dön · B garaj</div>
+<div id="pad"><div><b data-k="l">◀</b><b data-k="r">▶</b></div><div><b data-k="dn">■</b><b data-k="up">▲</b></div></div>
+<div id="shop"><div><h3 style="margin:0 0 6px">Garaj</h3><div id="list"></div><p style="text-align:right;margin:10px 0 0"><button onclick="shop(0)">Kapat</button></p></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const V=[
+{n:'Bisiklet',p:0,max:11,acc:9,turn:2.6,m:1,t:'bike',r:1,py:1.6,pz:-.8},
+{n:'Scooter',p:250,max:16,acc:12,turn:2.4,m:1.4,t:'sc',r:1,py:1.4,pz:-.9},
+{n:'Motor',p:700,max:23,acc:16,turn:2.2,m:1.9,t:'mo',r:1.1,py:1.7,pz:-1},
+{n:'Pikap',p:1600,max:26,acc:14,turn:1.8,m:2.7,t:'pk',r:1.5,py:1.7,pz:-1.4},
+{n:'Kamyon',p:3500,max:24,acc:10,turn:1.4,m:4,t:'tr',r:1.9,py:3.8,pz:-1}];
+let S={money:0,owned:[1,0,0,0,0],cur:0};
+try{const s=JSON.parse(localStorage.getItem('kurye3d'));if(s&&s.owned)S=s}catch(e){}
+const save=()=>{try{localStorage.setItem('kurye3d',JSON.stringify(S))}catch(e){}};
+const $=i=>document.getElementById(i),cl=(a,l,h)=>Math.max(l,Math.min(h,a));
+const R=new THREE.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(R.domElement);
+const sc=new THREE.Scene();sc.background=new THREE.Color(0x9ec9ee);sc.fog=new THREE.Fog(0x9ec9ee,60,230);
+const cam=new THREE.PerspectiveCamera(60,1,.1,400);
+sc.add(new THREE.HemisphereLight(0xffffff,0x556677,.95));
+const dl=new THREE.DirectionalLight(0xffffff,.6);dl.position.set(50,100,30);sc.add(dl);
+function rs(){R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener('resize',rs);rs();
+const Mt=c=>new THREE.MeshLambertMaterial({color:c});
+const gr=new THREE.Mesh(new THREE.PlaneGeometry(600,600),Mt(0x3a3f47));gr.rotation.x=-Math.PI/2;sc.add(gr);
+const B=[],KS=44,HB=14;
+for(let i=-3;i<=3;i++)for(let j=-3;j<=3;j++){
+ const x=i*KS,z=j*KS,h=8+Math.random()*32;
+ const sw=new THREE.Mesh(new THREE.BoxGeometry(32,.3,32),Mt(0x9a9a94));sw.position.set(x,.15,z);sc.add(sw);
+ const m=new THREE.Mesh(new THREE.BoxGeometry(2*HB,h,2*HB),new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(Math.random(),.28,.5+Math.random()*.25)}));
+ m.position.set(x,h/2+.3,z);sc.add(m);B.push({x,z,m});
+}
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(3,3,90,16,1,true),new THREE.MeshBasicMaterial({color:0x33ff77,transparent:true,opacity:.35,side:2}));sc.add(beam);
+function bx(g,w,h,d,c,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),Mt(c));m.position.set(x,y,z);g.add(m)}
+function wh(g,r,w,x,y,z){const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,w,12),Mt(0x111111));m.rotation.z=Math.PI/2;m.position.set(x,y,z);g.add(m)}
+function mk(c){const g=new THREE.Group(),t=c.t;
+ if(t=='bike'){wh(g,.45,.1,0,.45,1);wh(g,.45,.1,0,.45,-1);bx(g,.1,.1,2,0xdd2222,0,.9,0);bx(g,.5,.9,.4,0x2a6fdb,0,1.5,-.1);bx(g,.4,.4,.4,0xf1c27d,0,2.1,0)}
+ if(t=='sc'){wh(g,.35,.15,0,.35,.8);wh(g,.35,.15,0,.35,-.8);bx(g,.5,.4,1.8,0x22aa88,0,.6,0);bx(g,.1,.9,.1,0x333333,0,1,.7);bx(g,.7,.1,.1,0x333333,0,1.45,.7);bx(g,.5,.9,.4,0xdd6622,0,1.3,-.2);bx(g,.4,.4,.4,0xf1c27d,0,2,-.2)}
+ if(t=='mo'){wh(g,.45,.2,0,.45,1);wh(g,.45,.2,0,.45,-1);bx(g,.6,.7,2.2,0xcc2222,0,.9,0);bx(g,.8,.1,.1,0x222222,0,1.5,.8);bx(g,.5,.9,.4,0x333333,0,1.7,-.2);bx(g,.4,.4,.4,0xffcc00,0,2.4,-.1)}
+ if(t=='pk'){for(const x of[-1.15,1.15])for(const z of[-1.5,1.5])wh(g,.5,.3,x,.5,z);bx(g,2.2,.9,4.8,0x2266cc,0,.9,0);bx(g,2,.9,1.8,0x2a75e6,0,1.8,1.2);bx(g,1.8,.4,.1,0x9fd8ff,0,1.95,2.12)}
+ if(t=='tr'){for(const x of[-1.4,1.4])for(const z of[-2.4,-.6,2.4])wh(g,.6,.4,x,.6,z);bx(g,2.6,.6,7,0x333333,0,.9,0);bx(g,2.5,1.7,1.8,0xdd8800,0,2,2.6);bx(g,2.6,2.6,4.6,0xeeeeee,0,2.5,-1.1)}
+ const p=new THREE.Mesh(new THREE.BoxGeometry(.9,.7,.9),Mt(0xc98a3c));p.position.set(0,c.py,c.pz);p.visible=false;g.add(p);g.userData.p=p;return g}
+let car,pos={x:0,z:22},h=0,v=0,carry=false,pu,dr,tgt,tm=0,dist=0,hl=null;
+function setCar(){if(car)sc.remove(car);car=mk(V[S.cur]);car.userData.p.visible=carry;sc.add(car)}
+function setT(b){tgt=b;if(hl)hl.m.material.emissive.set(0);b.m.material.emissive.set(carry?0x771122:0x117733);hl=b;
+ beam.position.set(b.x,45,b.z);beam.material.color.set(carry?0xff3355:0x33ff77);$('arrow').style.color=carry?'#ff5577':'#33ff77'}
+function newM(){carry=false;car.userData.p.visible=false;pu=B[Math.random()*B.length|0];
+ do{dr=B[Math.random()*B.length|0]}while(Math.hypot(pu.x-dr.x,pu.z-dr.z)<80);
+ dist=Math.hypot(pu.x-dr.x,pu.z-dr.z);setT(pu)}
+let tt;function toast(s){const e=$('toast');e.textContent=s;e.style.opacity=1;clearTimeout(tt);tt=setTimeout(()=>e.style.opacity=0,1800)}
+const k={up:0,dn:0,l:0,r:0},km={KeyW:'up',ArrowUp:'up',KeyS:'dn',ArrowDown:'dn',KeyA:'l',ArrowLeft:'l',KeyD:'r',ArrowRight:'r'};
+addEventListener('keydown',e=>{if(km[e.code])k[km[e.code]]=1;if(e.code=='KeyB')shop(sh?0:1)});
+addEventListener('keyup',e=>{if(km[e.code])k[km[e.code]]=0});
+if('ontouchstart' in window){$('pad').style.display='flex';$('help').style.display='none'}
+document.querySelectorAll('#pad b').forEach(b=>{const n=b.dataset.k;b.onpointerdown=()=>k[n]=1;b.onpointerup=b.onpointerleave=b.onpointercancel=()=>k[n]=0});
+let sh=0;
+function shop(o){sh=o;$('shop').style.display=o?'flex':'none';if(o)draw()}
+function draw(){$('list').innerHTML='';V.forEach((c,i)=>{const r=document.createElement('div');r.className='row';
+ r.innerHTML=`<span><b>${c.n}</b><br><small>Hız ${c.max*3.6|0} km/s · Kazanç ×${c.m}</small></span>`;
+ const b=document.createElement('button');
+ if(S.owned[i]){b.textContent=S.cur==i?'Seçili':'Seç';b.onclick=()=>{S.cur=i;save();setCar();draw()}}
+ else{b.textContent='₺'+c.p;b.disabled=S.money<c.p;b.style.opacity=b.disabled?.4:1;b.onclick=()=>{S.money-=c.p;S.owned[i]=1;S.cur=i;save();setCar();draw()}}
+ r.appendChild(b);$('list').appendChild(r)})}
+setCar();newM();
+let last=performance.now();
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;
+ const c=V[S.cur];
+ if(!sh){
+  const th=k.up-k.dn;
+  if(th>0)v+=c.acc*dt;else if(th<0)v-=(v>0?c.acc*2.2:c.acc*.6)*dt;else v-=Math.sign(v)*Math.min(Math.abs(v),c.acc*.5*dt);
+  v=cl(v,-c.max*.3,c.max);
+  h+=(k.l-k.r)*c.turn*dt*Math.min(1,Math.abs(v)/6)*Math.sign(v);
+  pos.x+=Math.sin(h)*v*dt;pos.z+=Math.cos(h)*v*dt;
+  for(const b of B){const dx=pos.x-b.x,dz=pos.z-b.z,ex=dx-cl(dx,-HB,HB),ez=dz-cl(dz,-HB,HB),d=Math.hypot(ex,ez);
+   if(d<c.r&&d>1e-6){pos.x+=ex/d*(c.r-d);pos.z+=ez/d*(c.r-d);v*=1-Math.min(1,6*dt)}}
+  pos.x=cl(pos.x,-165,165);pos.z=cl(pos.z,-165,165);
+  if(carry)tm-=dt;
+  const ax=Math.max(Math.abs(pos.x-tgt.x)-HB,0),az=Math.max(Math.abs(pos.z-tgt.z)-HB,0);
+  if(Math.hypot(ax,az)<5){
+   if(!carry){carry=true;car.userData.p.visible=true;tm=dist/9+15;setT(dr);toast('📦 Paket alındı! Kırmızı binaya git')}
+   else{const late=tm<0,rw=Math.round((10+dist*.7)*c.m*(late?.5:1));S.money+=rw;save();toast((late?'⏰ Geç kaldın: ':'✅ Teslim edildi: ')+'+₺'+rw);newM()}}
+ }
+ car.position.set(pos.x,0,pos.z);car.rotation.y=h;
+ const fx=Math.sin(h),fz=Math.cos(h),d=8+c.r*3+Math.abs(v)*.15;
+ cam.position.lerp(new THREE.Vector3(pos.x-fx*d,4+c.r*1.8,pos.z-fz*d),Math.min(1,dt*5));
+ cam.lookAt(pos.x+fx*4,1.5,pos.z+fz*4);
+ const dx=tgt.x-pos.x,dz=tgt.z-pos.z;
+ $('arrow').style.transform=`rotate(${-(Math.atan2(dx,dz)-h)}rad)`;
+ $('m').textContent='₺'+S.money;$('vh').textContent=c.n;$('sp').textContent=Math.abs(v*3.6|0)+' km/s';
+ $('tk').textContent=carry?(tm>=0?'⏱ '+tm.toFixed(0)+' sn':'⏱ Geç!'):'';$('tk').style.display=carry?'':'none';
+ $('task').textContent=(carry?'🔴 Teslim binasına git':'🟢 Paketi al: yeşil bina')+' · '+Math.hypot(dx,dz)*1|0+' m';
+ R.render(sc,cam)}
+requestAnimationFrame(loop);
+</script></body></html>
