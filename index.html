@@ -1,4 +1,3 @@
-HTML
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -10,13 +9,43 @@ HTML
             color: #e0e0e0; 
             font-family: Arial, sans-serif; 
             text-align: center; 
-            margin-top: 100px; 
+            margin-top: 50px; 
         }
         h1 { color: #ff5722; }
+        .oyun-kutusu {
+            background-color: #1e1e1e;
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px auto;
+            width: 300px;
+        }
+        .buton {
+            display: inline-block;
+            background-color: #ff5722;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .buton:hover {
+            background-color: #e64a19;
+        }
     </style>
 </head>
 <body>
-    <h1>Merhaba, Ben Bir Oyun Geliştiricisiyim!</h1>
-    <p>Kendi geliştirdiğim projeler yakında burada olacak.</p>
+    <h1>Oyun Geliştirme Stüdyoma Hoş Geldiniz</h1>
+    <p>Burada geliştirdiğim projeleri deneyebilirsiniz.</p>
+
+    <!-- 1. Oyunun Kutusu -->
+    <div class="oyun-kutusu">
+        <h2>İlk Oyunum</h2>
+        <p>Yapay zeka desteğiyle tasarladığım ilk web oyunu.</p>
+        <!-- href kısmına oyunun HTML dosyasının adını yazıyoruz -->
+        <a href="oyun1.html" class="buton">Oyunu Oyna</a>
+    </div>
+
 </body>
 </html>
