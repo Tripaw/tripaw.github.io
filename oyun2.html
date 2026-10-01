@@ -32,21 +32,32 @@ function mkFx(){const a=[...Array(10).keys()],fx=[];
  for(let r=0;r<9;r++){const rd=[];for(let i=0;i<5;i++)rd.push([a[i],a[9-i]]);fx.push(rd);a.splice(1,0,a.pop())}
  fx.push(...fx.slice(0,9).map(rd=>rd.map(([h,b])=>[b,h])));
  return fx}
-function start(my){const ids=[...Array(10).keys()].filter(i=>i!=my).sort(()=>Math.random()-.5),bs=[76,74,72,70,68,66,64,60,58],B={};ids.forEach((id,k)=>B[id]=bs[k]);B[my]=62;
+function start(my){const ids=[...Array(10).keys()].filter(i=>i!=my).sort(()=>Math.random()-.5),bs=[74,72,70,68,66,65,64,60,59],B={};ids.forEach((id,k)=>B[id]=bs[k]);B[my]=62;
  S={teams:TN.map((_,i)=>mkTeam(i,B[i])),my,round:0,fx:mkFx(),money:10,pool:null,season:1,hist:[]};home()}
-function next(){S.teams.forEach(t=>{Object.assign(t,{pts:0,p:0,w:0,d:0,l:0,gf:0,ga:0,tac:'D'});t.players.forEach(p=>p.en=100)});S.round=0;S.fx=mkFx();S.season++;S.pool=null;S.prized=false;sel=null;home()}
+function next(){S.teams.forEach(t=>{Object.assign(t,{pts:0,p:0,w:0,d:0,l:0,gf:0,ga:0,tac:'D'});t.players.forEach(p=>p.en=100)});S.round=0;S.fx=mkFx();S.season++;S.pool=null;S.news=[];
+ const st=t=>t.players.slice(0,11).reduce((x,p)=>x+p.r,0),rk=[...S.teams].sort((a,b)=>st(b)-st(a));
+ rk.slice(0,3).forEach(t=>{if(Math.random()<.1){t.players.forEach(p=>p.r=Math.max(40,p.r-2));S.news.push(`📉 ${t.name} güç kaybetti (−2)`)}});
+ rk.slice(-3).forEach(t=>{if(Math.random()<.2){t.players.forEach(p=>{if(p.r<83)p.r=Math.min(83,p.r+2)});S.news.push(`📈 ${t.name} güçlendi (+2)`)}});S.prized=false;sel=null;home()}
 function tot(t){const x=t.players.slice(0,11),e=p=>p.r*(.5+.5*p.en/100);let at=0,df=0;
  x.forEach(p=>{const v=e(p);if(p.pos=='F'){at+=v*1.2}else if(p.pos=='O'){at+=v*.6;df+=v*.4}else if(p.pos=='D')df+=v;else df+=v*1.5});
  let m=t.tac=='A'?[1.15,.88]:t.tac=='S'?[.88,1.15]:[1,1];return[at/4.8*m[0],df/7.1*m[1]]}
 const enr=t=>Math.round(t.players.slice(0,11).reduce((x,p)=>x+p.en,0)/11)+'%';
-function ratings(t){const eff=p=>p.r*(.5+.5*p.en/100),av=pos=>{const a=t.players.slice(0,11).filter(p=>p.pos==pos);return a.length?a.reduce((x,p)=>x+eff(p),0)/a.length:40};
- const k=t.tac=='A'?[1.15,1.03,.88]:t.tac=='S'?[.88,.97,1.15]:[1,1,1];return{f:av('F')*k[0],m:av('O')*k[1],d:av('D')*k[2],g:av('K')}}
-function step(h,a){const R=[ratings(h),ratings(a)],c=x=>x*x*x,ph=c(R[0].m*1.03)/(c(R[0].m*1.03)+c(R[1].m)),i=Math.random()<ph?0:1,o=1-i,A=R[i],D=R[o],out={ball:i,g:[0,0],sh:[0,0],ot:[0,0]};
+const rd=(t,p)=>{p.out=true;p.sus=1;t.reds=(t.reds||0)+1};
+const tg=p=>(p.out?'🟥 ':'')+(p.sus>0&&!p.out?'🚫 ':'')+(p.ym?'🟨 ':'')+(p.yc?`<span class="mu">(${p.yc}/4)</span>`:'');
+function fix(t){const P=t.players;for(let i=0;i<11;i++)if(P[i].sus>0){let j=P.findIndex((p,k)=>k>=11&&!(p.sus>0)&&p.pos==P[i].pos);if(j<0)j=P.findIndex((p,k)=>k>=11&&!(p.sus>0));if(j>=0)[P[i],P[j]]=[P[j],P[i]]}}
+function prep(t){t.orig=t.players.slice();t.reds=0;t.players.forEach(p=>{p.ym=false;p.out=false;if(p.sus>0)p.srv=1});fix(t)}
+function post(t){t.players=t.orig;t.players.forEach(p=>{p.out=false;p.ym=false;if(p.srv){p.sus--;p.srv=0}})}
+function ratings(t){const eff=p=>p.r*(.5+.5*p.en/100),av=pos=>{const a=t.players.slice(0,11).filter(p=>p.pos==pos&&!p.out);return a.length?a.reduce((x,p)=>x+eff(p),0)/a.length:40};
+ const k=t.tac=='A'?[1.15,1.03,.88]:t.tac=='S'?[.88,.97,1.15]:[1,1,1];const fm=(t.form||1)*Math.pow(.93,t.reds||0);return{f:av('F')*k[0]*fm,m:av('O')*k[1]*fm,d:av('D')*k[2]*fm,g:av('K')}}
+function step(h,a){const R=[ratings(h),ratings(a)],c=x=>x*x,ph=c(R[0].m*1.03)/(c(R[0].m*1.03)+c(R[1].m)),i=Math.random()<ph?0:1,o=1-i,A=R[i],D=R[o],out={ball:i,g:[0,0],sh:[0,0],ot:[0,0],cards:[]};
  const att=(.6*A.f+.4*A.m)*(i?1:1.04),dq=.6*D.d+.4*D.m;
- if(Math.random()<.11*Math.pow(att/dq,1.5)){out.sh[i]=1;const q=A.f/(D.d*.6+D.g*.4),pg=Math.min(.6,Math.max(.05,.3*q*q));
+ if(Math.random()<.11*Math.pow(att/dq,1.2)){out.sh[i]=1;const q=A.f/(D.d*.6+D.g*.4),pg=Math.min(.6,Math.max(.08,.3*Math.pow(q,1.5)));
   if(Math.random()<pg){out.g[i]=1;out.ot[i]=1}else if(Math.random()<.4)out.ot[i]=1}
+ [h,a].forEach((t,i)=>{const pl=t.players.slice(0,11).filter(p=>!p.out),x=Math.random();if(!pl.length||x>.00025+.004)return;const p=pick(pl);
+  if(x<.00025){rd(t,p);out.cards.push([i,p.n,'k'])}else if(p.ym){rd(t,p);out.cards.push([i,p.n,'2s'])}
+  else{p.ym=true;p.yc=(p.yc||0)+1;if(p.yc>=4){p.yc=0;p.sus=1;out.cards.push([i,p.n,'y4'])}else out.cards.push([i,p.n,'s'])}});
  [h,a].forEach(t=>t.players.slice(0,11).forEach(p=>p.en=Math.max(20,p.en-(t.tac=='A'?.38:t.tac=='S'?.19:.28))));return out}
-function fin(h,a,gh,ga){[[h,gh,ga],[a,ga,gh]].forEach(([t,f,c])=>{t.p++;t.gf+=f;t.ga+=c;if(f>c){t.w++;t.pts+=3;if(t.id!=S.my){const p=pick(t.players);p.r=Math.min(83,p.r+1)}}else if(f==c){t.d++;t.pts++}else t.l++})}
+function fin(h,a,gh,ga){[[h,gh,ga],[a,ga,gh]].forEach(([t,f,c])=>{t.up=null;t.p++;t.gf+=f;t.ga+=c;if(f>c){t.w++;t.pts+=3;if(Math.random()<.6){const p=pick(t.players);if(p.r<83){p.r++;t.up=p.n}}}else if(f==c){t.d++;t.pts++}else t.l++})}
 function sorted(){return[...S.teams].sort((x,y)=>y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf)}
 function tbl(){return`<div class="tw"><table><tr><th>#<th>Takım<th>O<th>G<th>B<th>M<th>A<th>Y<th>P</tr>${sorted().map((t,i)=>`<tr class="${t.id==S.my?'me':''}"><td>${i+1}<td>${t.name}<td>${t.p}<td>${t.w}<td>${t.d}<td>${t.l}<td>${t.gf}<td>${t.ga}<td>${t.pts}</tr>`).join('')}</table></div>`}
 let sel=null;
@@ -58,18 +69,18 @@ function sell(i){const t=S.teams[S.my],p=t.players[i];S.money+=sv(p);t.players.s
 function tfCard(){if(!win())return'';return`<div class="card"><h3>🔄 Transfer Dönemi <span class="mu">(${S.season==1?'8.–12.':'1.–3.'} hafta)</span></h3><div class="mu" style="margin-bottom:6px">Alınan oyuncular yedeğe gider. Satmak için yedekteki oyuncuda "Sat" düğmesini kullan.</div>
  ${S.pool.map((p,i)=>`<div class="pl" style="cursor:default"><span>${PN[p.pos][0]} · ${p.n} <b>${p.r}</b></span><button ${S.money<pr(p)?'disabled':''} onclick="buy(${i})">Al ${pr(p)}M €</button></div>`).join('')}</div>`}
 function squad(live){const t=S.teams[S.my];return`<h3>Kadro ${live?`<span class="mu">(değişiklik: ${M.subs}/5)</span>`:''}</h3>`+t.players.map((p,i)=>
- `${i==11?'<div class="mu" style="margin:6px 0">Yedekler</div>':''}<div class="pl ${sel===i?'sel':''}" onclick="clk(${i})"><span>${PN[p.pos][0]} · ${p.n}</span><span>${p.r}${!live&&win()&&i>=11&&t.players.length>13?` <button onclick="event.stopPropagation();sell(${i})">Sat +${sv(p)}M €</button>`:''}</span></div><div class="bar"><i style="width:${p.en}%"></i></div>`).join('')+`<div class="mu">Bir ilk 11 oyuncusu, sonra bir yedek seç.</div>`}
-function clk(i){const t=S.teams[S.my];if(sel===null){sel=i;}else{const a=Math.min(sel,i),b=Math.max(sel,i);
- if(a<11&&b>=11){if(M&&M.subs>=5){alert('En fazla 5 değişiklik!');sel=null;return}
+ `${i==11?'<div class="mu" style="margin:6px 0">Yedekler</div>':''}<div class="pl ${sel===i?'sel':''}" onclick="clk(${i})"><span>${PN[p.pos][0]} · ${p.n} ${tg(p)}</span><span>${p.r}${!live&&win()&&i>=11&&t.players.length>13?` <button onclick="event.stopPropagation();sell(${i})">Sat +${sv(p)}M €</button>`:''}</span></div><div class="bar"><i style="width:${p.en}%"></i></div>`).join('')+`<div class="mu">Bir ilk 11 oyuncusu, sonra bir yedek seç. Cezalı (🚫) oyuncular maç başında yedeğe alınır.</div>`}
+function clk(i){const t=S.teams[S.my];if(t.players[i].out)return;if(sel===null){sel=i;}else{const a=Math.min(sel,i),b=Math.max(sel,i);
+ if(a<11&&b>=11){if(t.players[b].sus>0){alert('Bu oyuncu cezalı, oynayamaz!');sel=null;return}if(M&&M.subs>=5){alert('En fazla 5 değişiklik!');sel=null;return}
   [t.players[a],t.players[b]]=[t.players[b],t.players[a]];if(M){M.subs++;log(`🔁 ${t.players[b].n} çıktı, ${t.players[a].n} girdi`)}}sel=null}
  M?live():home()}
 function home(){const my=S.teams[S.my];if(S.round>=18)return end();if(win()&&!S.pool)S.pool=genPool();
  const [h,a]=S.fx[S.round].find(m=>m.includes(S.my));
  $('app').innerHTML=`<h1>⚽ ${my.name} <span class="mu">💰 ${S.money}M €</span></h1><div class="card"><h3>Sezon ${S.season} · Hafta ${S.round+1}/18</h3><div>${S.teams[h].name} - ${S.teams[a].name}</div><br><button class="p" onclick="kickoff()">Maça Çık</button></div>
- ${tfCard()}<div class="grid"><div class="card">${squad(false)}</div><div class="card"><h3>Puan Durumu</h3>${tbl()}</div></div>`}
+ ${S.news&&S.news.length?`<div class="card"><h3>📰 Sezon Başı Haberleri</h3>${S.news.map(x=>`<div>${x}</div>`).join('')}</div>`:''}${tfCard()}<div class="grid"><div class="card">${squad(false)}</div><div class="card"><h3>Puan Durumu</h3>${tbl()}</div></div>`}
 function kickoff(){const[h,a]=S.fx[S.round].find(m=>m.includes(S.my));
- M={h:S.teams[h],a:S.teams[a],min:0,g:[0,0],subs:0,st:{poss:[0,0],sh:[0,0],ot:[0,0]},lg:[],pause:false,spd:220};
- S.teams.forEach(t=>{t.tac='D';t.players.forEach(p=>p.en=100)});M.orig=S.teams[S.my].players.slice();sel=null;live();M.tm=setInterval(tick,M.spd)}
+ M={h:S.teams[h],a:S.teams[a],min:0,g:[0,0],subs:0,st:{poss:[0,0],sh:[0,0],ot:[0,0],yc:[0,0],rc:[0,0]},lg:[],pause:false,spd:220};
+ S.teams.forEach(t=>{t.tac='D';t.form=rnd(.95,1.05);t.players.forEach(p=>p.en=100)});S.news=null;prep(M.h);prep(M.a);sel=null;live();M.tm=setInterval(tick,M.spd)}
 function log(s){M.lg.unshift(`<div><b>${M.min}'</b> ${s}</div>`)}
 function tick(){if(M.pause)return;M.min++;
  const ai=M.h.id==S.my?M.a:M.h,ig=ai==M.h?M.g[0]-M.g[1]:M.g[1]-M.g[0];ai.tac=M.min>65&&ig<0?'A':M.min>75&&ig>0?'S':'D';
@@ -77,13 +88,15 @@ function tick(){if(M.pause)return;M.min++;
  [0,1].forEach(i=>{const t=i?M.a:M.h;M.st.sh[i]+=o.sh[i];M.st.ot[i]+=o.ot[i];
   if(o.g[i]){M.g[i]++;const pl=t.players.slice(0,11).filter(p=>p.pos!='K'),fw=pl.filter(p=>p.pos=='F');log(`⚽ <b>GOL!</b> ${t.name} — ${pick(fw.length&&Math.random()<.65?fw:pl).n}`)}
   else if(o.sh[i])log(`${t.name} şut çekti${o.ot[i]?', kaleci kurtardı':', dışarı'}`)});
+ o.cards.forEach(([i,n,k])=>{const t=i?M.a:M.h;if(k=='s'||k=='y4'||k=='2s')M.st.yc[i]++;if(k=='k'||k=='2s')M.st.rc[i]++;
+  log(k=='s'?`🟨 ${n} (${t.name}) sarı kart gördü`:k=='y4'?`🟨 ${n} (${t.name}) 4. sarı kartını gördü, 1 maç cezalı`:k=='2s'?`🟨🟥 ${n} (${t.name}) ikinci sarıdan oyundan atıldı!`:`🟥 ${n} (${t.name}) direkt kırmızı kart gördü!`)});
  if(M.min==45)log('— Devre arası —');
  if(M.min>=90){clearInterval(M.tm);after();return}live()}
 function after(){fin(M.h,M.a,M.g[0],M.g[1]);const res=[];
  S.fx[S.round].forEach(([h,a])=>{if(h==M.h.id)return;const H=S.teams[h],A=S.teams[a];H.tac=A.tac='D';H.players.forEach(p=>p.en=100);A.players.forEach(p=>p.en=100);
-  let g=[0,0];for(let m=0;m<90;m++){const x=step(H,A);g[0]+=x.g[0];g[1]+=x.g[1]}fin(H,A,g[0],g[1]);res.push(`${H.name} ${g[0]}-${g[1]} ${A.name}`)});
- S.teams[S.my].players=M.orig;S.teams.forEach(t=>t.players.forEach(p=>p.en=100));S.round++;
- const r=M;M=null;const mg=r.h.id==S.my?[r.g[0],r.g[1]]:[r.g[1],r.g[0]],earn=mg[0]>mg[1]?5:mg[0]==mg[1]?2:0;S.money+=earn;$('app').innerHTML=`<h1>Maç Sonu</h1><div class="card"><div class="score">${r.h.name} ${r.g[0]} - ${r.g[1]} ${r.a.name}</div><p style="text-align:center">💰 +${earn}M € kazandın (galibiyet 5, beraberlik 2)</p>${S.season==1&&S.round==7?'<p style="text-align:center"><b>🔄 Transfer dönemi başladı!</b></p>':''}</div>
+  prep(H);prep(A);let g=[0,0];for(let m=0;m<90;m++){const x=step(H,A);g[0]+=x.g[0];g[1]+=x.g[1]}fin(H,A,g[0],g[1]);post(H);post(A);res.push(`${H.name} ${g[0]}-${g[1]} ${A.name}`)});
+ post(M.h);post(M.a);S.teams.forEach(t=>t.players.forEach(p=>p.en=100));S.round++;
+ const r=M;M=null;const mg=r.h.id==S.my?[r.g[0],r.g[1]]:[r.g[1],r.g[0]],earn=mg[0]>mg[1]?5:mg[0]==mg[1]?2:0;S.money+=earn;$('app').innerHTML=`<h1>Maç Sonu</h1><div class="card"><div class="score">${r.h.name} ${r.g[0]} - ${r.g[1]} ${r.a.name}</div><p style="text-align:center">💰 +${earn}M € kazandın (galibiyet 5, beraberlik 2)</p>${S.teams[S.my].up?`<p style="text-align:center">📈 ${S.teams[S.my].up} +1 gelişti</p>`:''}${S.season==1&&S.round==7?'<p style="text-align:center"><b>🔄 Transfer dönemi başladı!</b></p>':''}</div>
  <div class="grid"><div class="card"><h3>Diğer Sonuçlar</h3>${res.map(x=>`<div>${x}</div>`).join('')}</div><div class="card"><h3>Puan Durumu</h3>${tbl()}</div></div>
  <button class="p" onclick="home()">Devam</button>`}
 function live(){const my=S.teams[S.my],T=(k,l)=>`<button class="${my.tac==k?'on':''}" onclick="tac('${k}')">${l}</button>`;
@@ -92,7 +105,7 @@ function live(){const my=S.teams[S.my],T=(k,l)=>`<button class="${my.tac==k?'on'
  <span style="flex:1"></span><button onclick="M.pause=!M.pause;live()">${M.pause?'▶ Devam':'⏸ Duraklat'}</button><button onclick="spd()">Hız: ${M.spd<150?'Hızlı':M.spd<300?'Normal':'Yavaş'}</button></div>
  ${statCard()}<div class="grid"><div class="card"><h3>Maç</h3><div class="log">${M.lg.join('')||'<span class="mu">Başlangıç düdüğü...</span>'}</div></div><div class="card">${squad(true)}</div></div>`}
 function statCard(){const st=M.st,tp=(st.poss[0]+st.poss[1])||1,p=Math.round(st.poss[0]/tp*100),R=[ratings(M.h),ratings(M.a)],q=(l,a,b)=>`<tr><td>${a}<td style="text-align:center" class="mu">${l}<td style="text-align:right">${b}</tr>`;
- return`<div class="card"><h3>📊 İstatistik</h3><table>${q('Topla oynama',p+'%',(100-p)+'%')}${q('Şut',st.sh[0],st.sh[1])}${q('İsabetli şut',st.ot[0],st.ot[1])}${q('Forvet',Math.round(R[0].f),Math.round(R[1].f))}${q('Orta saha',Math.round(R[0].m),Math.round(R[1].m))}${q('Defans',Math.round(R[0].d),Math.round(R[1].d))}${q('Kaleci',Math.round(R[0].g),Math.round(R[1].g))}${q('Enerji',enr(M.h),enr(M.a))}</table>
+ return`<div class="card"><h3>📊 İstatistik</h3><table>${q('Topla oynama',p+'%',(100-p)+'%')}${q('Şut',st.sh[0],st.sh[1])}${q('İsabetli şut',st.ot[0],st.ot[1])}${q('Forvet',Math.round(R[0].f),Math.round(R[1].f))}${q('Orta saha',Math.round(R[0].m),Math.round(R[1].m))}${q('Defans',Math.round(R[0].d),Math.round(R[1].d))}${q('Kaleci',Math.round(R[0].g),Math.round(R[1].g))}${q('Enerji',enr(M.h),enr(M.a))}${q('Kart 🟨/🟥',st.yc[0]+'/'+st.rc[0],st.yc[1]+'/'+st.rc[1])}</table>
  <div class="mu" style="margin-top:6px">Orta saha → topla oynama. Topa sahip olan şut bulur. Forvet, rakip defans+kaleciden güçlüyse şutlar gol olur. Yorulanlar zayıflar.</div></div>`}
 function tac(k){S.teams[S.my].tac=k;live()}
 function spd(){M.spd=M.spd<150?450:M.spd<300?100:220;clearInterval(M.tm);M.tm=setInterval(tick,M.spd);live()}
