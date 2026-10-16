@@ -1,184 +1,654 @@
-<!DOCTYPE html>
-<html lang="tr">
+<!doctype html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Düşüş Yarışı</title>
-    <!-- Matter.js (Fizik motoru) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <style>
-        body { font-family: sans-serif; background-color: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
-        .controls { display: flex; gap: 20px; margin-bottom: 20px; background: #2a2a2a; padding: 15px; border-radius: 10px; }
-        .player-setup { display: flex; flex-direction: column; gap: 5px; }
-        input[type="text"] { padding: 5px; border-radius: 5px; border: none; }
-        input[type="file"] { font-size: 12px; }
-        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        button:hover { background: #45a049; }
-        #canvas-container { position: relative; border: 2px solid #444; background: #000; }
-        /* Gizli kazanma seçici - dışarıdan normal bir ayar gibi görünür */
-        .secret-select { opacity: 0.3; background: transparent; color: white; border: 1px solid #555; font-size: 10px; margin-top: 10px; }
-        .secret-select:hover { opacity: 1; }
-        #winner-banner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: bold; color: #FFD700; text-shadow: 2px 2px 5px #000; display: none; z-index: 10; text-align: center;}
-    </style>
-</head>
-<body>
+<meta charset=utf8>
+<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}
+img{max-width:100%}
+[hidden]:not([hidden=until-found i]){display:none!important}
+</style>
+<title>Ball Race</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Düzen: tek sütun. Önce kurulum (iki yuvarlak kartı), başlayınca tam ekran ortak pist ve sonuç kartı. */
+:root {
+  --bg: #EDF0F1;
+  --panel: #FFFFFF;
+  --ink: #12181B;
+  --muted: #5C6A70;
+  --line: #CFD7DA;
+  --lane: #E1E7E9;
+  --peg: #6B7B82;
+  --a: #E8590C;
+  --b: #1C6FD6;
+  --bad: #C62828;
+  --btn: #12181B;
+  --btnink: #FFFFFF;
+  --scrim: rgba(237, 240, 241, 0.84);
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1315;
+    --panel: #171D20;
+    --ink: #E9EEF0;
+    --muted: #8FA0A7;
+    --line: #2A3438;
+    --lane: #1C2427;
+    --peg: #82939A;
+    --a: #FF8A3D;
+    --b: #5AA2FF;
+    --bad: #FF7B72;
+    --btn: #E9EEF0;
+    --btnink: #0F1315;
+    --scrim: rgba(15, 19, 21, 0.82);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1315;
+  --panel: #171D20;
+  --ink: #E9EEF0;
+  --muted: #8FA0A7;
+  --line: #2A3438;
+  --lane: #1C2427;
+  --peg: #82939A;
+  --a: #FF8A3D;
+  --b: #5AA2FF;
+  --bad: #FF7B72;
+  --btn: #E9EEF0;
+  --btnink: #0F1315;
+  --scrim: rgba(15, 19, 21, 0.82);
+  color-scheme: dark;
+}
 
-    <div class="controls">
-        <div class="player-setup">
-            <label>1. Oyuncu (Kırmızı)</label>
-            <input type="text" id="p1Name" value="Oyuncu 1">
-            <input type="file" id="p1Image" accept="image/*">
-        </div>
-        <div class="player-setup">
-            <label>2. Oyuncu (Mavi)</label>
-            <input type="text" id="p2Name" value="Oyuncu 2">
-            <input type="file" id="p2Image" accept="image/*">
-        </div>
-        <div class="player-setup">
-            <button onclick="startGame()">Yarışı Başlat</button>
-            <!-- Kimsenin anlamayacağı gizli ayar -->
-            <select id="secretWinner" class="secret-select">
-                <option value="0">Fizik (Rastgele)</option>
-                <option value="1">Sol (1. Oyuncu) Kazansın</option>
-                <option value="2">Sağ (2. Oyuncu) Kazansın</option>
-            </select>
-        </div>
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-block: 22px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; position: relative; }
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 46px;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  margin: 0;
+  text-wrap: balance;
+}
+.lead { margin: 8px 0 0; color: var(--muted); max-width: 38ch; }
+
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card {
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.l0 { --c: var(--a); }
+.l1 { --c: var(--b); }
+.tag {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.tag i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); display: block; }
+.preview {
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 4px solid #000;
+  background: var(--lane);
+  display: block;
+}
+.name {
+  width: 100%; min-width: 0;
+  font: inherit; font-size: 15px; text-align: center;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 8px;
+}
+.name::placeholder { color: var(--muted); }
+
+/* Dosya seçici butonun tam üstünde, görünmez: dokunuş doğrudan seçiciye gider. */
+.filewrap { position: relative; width: 100%; }
+.fileinp {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; z-index: 1;
+}
+.filebtn {
+  display: block; width: 100%; text-align: center;
+  font-weight: 600; font-size: 15px;
+  border: 1.5px solid var(--ink); border-radius: 8px; padding: 9px 8px;
+}
+.filewrap:hover .filebtn,
+.fileinp:focus-visible + .filebtn { background: var(--ink); color: var(--bg); }
+.msg { margin: 0; font-size: 13px; color: var(--bad); text-align: center; }
+
+.linkbtn {
+  background: none; border: 0; padding: 2px; cursor: pointer;
+  font: inherit; font-size: 13px; color: var(--muted); text-decoration: underline;
+}
+button:focus-visible, .name:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
+
+.start {
+  width: 100%; cursor: pointer; border: 0; border-radius: 10px;
+  background: var(--btn); color: var(--btnink);
+  font-family: var(--font-display); font-weight: 800; font-size: 26px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 14px 16px;
+}
+.note { margin: 0; font-size: 14px; color: var(--muted); }
+
+.stage { width: min(100%, calc(78vh * 0.6)); width: min(100%, calc(78svh * 0.6)); margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.stagebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.stagebar span {
+  font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.canvaswrap { position: relative; }
+canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+
+.result {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--scrim); border-radius: 10px;
+}
+.resultcard {
+  width: min(88%, 300px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 22px 18px 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+}
+.resultcard img { width: 96px; height: 96px; border-radius: 50%; border: 4px solid #000; display: block; margin-bottom: 6px; }
+.kicker { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.winner { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; }
+.time { color: var(--muted); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+.resultcard .start { font-size: 22px; padding: 11px 14px; }
+.resultcard .linkbtn { font-size: 14px; margin-top: 4px; }
+
+/* HİLE MENÜSÜ CSS (GÖRÜNMEZ) */
+.cheat-box {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  width: 50px;
+  height: 50px;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 999;
+}
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <!-- HİLE SEÇİCİ KUTUSU (Görünmez ama sağ üst köşeye tıklanabilir) -->
+  <select id="cheatSelect" class="cheat-box" aria-label="Secret cheat selector">
+    <option value="-1">Adil Fırlatma</option>
+    <option value="0">Top 1 Kesin Kazansın</option>
+    <option value="1">Top 2 Kesin Kazansın</option>
+  </select>
+
+  <section id="setup" aria-label="Setup">
+    <h1>Ball Race</h1>
+    <p class="lead">Two balls race down the same track and bump into each other on the way. Pick their pictures, start the race, and stay out of it.</p>
+  </section>
+
+  <div id="cardsBox" class="cards">
+    <div class="card l0">
+      <div class="tag"><i></i>Ball 1</div>
+      <img id="prev0" class="preview" alt="Picture of ball 1">
+      <input id="name0" class="name" type="text" maxlength="14" placeholder="Orange" aria-label="Name of ball 1">
+      <div class="filewrap">
+        <input id="file0" class="fileinp" type="file" accept="image/*" aria-label="Choose a picture from your gallery for ball 1">
+        <span class="filebtn">Choose from gallery</span>
+      </div>
+      <p id="msg0" class="msg" role="alert" hidden></p>
+      <button id="reset0" class="linkbtn" type="button">Default picture</button>
     </div>
-
-    <div id="canvas-container">
-        <div id="winner-banner"></div>
+    <div class="card l1">
+      <div class="tag"><i></i>Ball 2</div>
+      <img id="prev1" class="preview" alt="Picture of ball 2">
+      <input id="name1" class="name" type="text" maxlength="14" placeholder="Blue" aria-label="Name of ball 2">
+      <div class="filewrap">
+        <input id="file1" class="fileinp" type="file" accept="image/*" aria-label="Choose a picture from your gallery for ball 2">
+        <span class="filebtn">Choose from gallery</span>
+      </div>
+      <p id="msg1" class="msg" role="alert" hidden></p>
+      <button id="reset1" class="linkbtn" type="button">Default picture</button>
     </div>
+  </div>
 
-    <script>
-        const Engine = Matter.Engine,
-              Render = Matter.Render,
-              Runner = Matter.Runner,
-              Bodies = Matter.Bodies,
-              Composite = Matter.Composite,
-              Events = Matter.Events,
-              Body = Matter.Body;
+  <button id="startBtn" class="start" type="button">Start race</button>
+  <p id="fairNote" class="note">The track is an exact mirror image from left to right. The balls start from random sides, and nothing can be touched once the race begins. Both have an equal chance of winning.</p>
 
-        let engine, render, runner;
-        let player1, player2;
-        let p1ImgUrl = null, p2ImgUrl = null;
-        let raceFinished = false;
+  <section id="stage" class="stage" hidden aria-label="Race track">
+    <div class="stagebar">
+      <span id="stageTitle">Race in progress</span>
+      <button id="abortBtn" class="linkbtn" type="button">Cancel</button>
+    </div>
+    <div class="canvaswrap">
+      <canvas id="cv" role="img" aria-label="Two balls fall down the same track between obstacles and bump into each other"></canvas>
+      <div id="result" class="result" hidden>
+        <div id="resultCard" class="resultcard l0" role="status" aria-live="polite">
+          <img id="winImg" alt="">
+          <div class="kicker">Winner</div>
+          <div id="winName" class="winner"></div>
+          <div id="winTime" class="time"></div>
+          <button id="againBtn" class="start" type="button">Race again</button>
+          <button id="changeBtn" class="linkbtn" type="button">Change pictures</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
 
-        // Resim yükleme işlemleri
-        document.getElementById('p1Image').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) p1ImgUrl = URL.createObjectURL(file);
-        });
-        document.getElementById('p2Image').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) p2ImgUrl = URL.createObjectURL(file);
-        });
+<script>
+(function () {
+  'use strict';
 
-        function createObstacles(world) {
-            const obstacles = [];
-            // Nokta engeller (Plinko tarzı)
-            for (let y = 150; y < 600; y += 80) {
-                let offset = (y / 80) % 2 === 0 ? 0 : 40;
-                for (let x = 20; x < 400; x += 80) {
-                    obstacles.push(Bodies.circle(x + offset, y, 8, { isStatic: true, render: { fillStyle: '#ffffff' } }));
-                }
-            }
+  // ---- Pist ölçüleri (mantıksal birim; 20 birim = 1 m) ----
+  var W = 360, H = 600;
+  var CX = 180, HALF = 164;                 
+  var R = 14;                               
+  var START_Y = 70;
+  var FINISH = 0, TRACK_END = 0, PX_PER_M = 20;   
+  var G = 370, VMAX = 235, STEP = 1 / 240;
+  var CATCHUP = 0.9, CATCH_DIST = 250;
+  var DEFAULT_NAMES = ['Orange', 'Blue'];
+  var DEFAULT_COLORS = ['#E8590C', '#1C6FD6'];
 
-            // Sabit çizgi engeller
-            obstacles.push(Bodies.rectangle(100, 250, 100, 10, { isStatic: true, angle: Math.PI / 6, render: { fillStyle: '#ff9900' } }));
-            obstacles.push(Bodies.rectangle(300, 400, 100, 10, { isStatic: true, angle: -Math.PI / 6, render: { fillStyle: '#ff9900' } }));
+  var rnd = (function () {
+    var b = new Uint32Array(1);
+    return function () {
+      try { crypto.getRandomValues(b); return b[0] / 4294967296; }
+      catch (e) { return Math.random(); }
+    };
+  })();
 
-            // Dönen engeller (Pervaneler)
-            const rotator1 = Bodies.rectangle(200, 300, 120, 10, { isStatic: true, render: { fillStyle: '#ff0055' } });
-            const rotator2 = Bodies.rectangle(200, 500, 120, 10, { isStatic: true, render: { fillStyle: '#ff0055' } });
-            obstacles.push(rotator1, rotator2);
+  var pegs = [], bars = [], spins = [];
+  function peg(dx, y, r) {
+    pegs.push({ x: dx, y: y, r: r });
+    if (dx !== 0) pegs.push({ x: -dx, y: y, r: r });
+  }
+  function bar(x1, y1, x2, y2, cr) {
+    bars.push({ ax: x1, ay: y1, bx: x2, by: y2, cr: cr, y0: Math.min(y1, y2) - cr, y1: Math.max(y1, y2) + cr });
+    if (!(x1 === -x2 && y1 === y2)) {
+      bars.push({ ax: -x1, ay: y1, bx: -x2, by: y2, cr: cr, y0: Math.min(y1, y2) - cr, y1: Math.max(y1, y2) + cr });
+    }
+  }
+  function spin(dx, y, L, w0) {
+    var a = { x: dx, y: y, L: L, w0: w0, th: 0, w: 0, sg: 1, mate: null, cr: 4 };
+    spins.push(a);
+    if (dx !== 0) {
+      var c = { x: -dx, y: y, L: L, w0: w0, th: 0, w: 0, sg: -1, mate: a, cr: 4 };
+      a.mate = c;
+      spins.push(c);
+    }
+  }
 
-            // Pervaneleri döndürme mantığı
-            Events.on(engine, 'beforeUpdate', function() {
-                Body.setAngle(rotator1, rotator1.angle + 0.03);
-                Body.setAngle(rotator2, rotator2.angle - 0.05);
-            });
+  function pegField(y, rows, par) {
+    for (var i = 0; i < rows; i++) {
+      var odd = (i + par) % 2 === 1;
+      (odd ? [26, 78, 130] : [0, 52, 104, 156]).forEach(function (dx) { peg(dx, y + i * 56, 5); });
+    }
+    return y + (rows - 1) * 56 + 90;
+  }
+  function funnel(y) { bar(-164, y, -36, y + 60, 4); peg(0, y + 120, 9); return y + 220; }
+  function spinPair(y) { spin(86, y, 46, 2.4); peg(152, y, 5); return y + 150; }
+  function spinCenter(y) { spin(0, y, 60, 2.0); return y + 170; }
+  function shelves(y) { bar(-24, y, -100, y + 40, 4); bar(-164, y + 120, -54, y + 170, 4); return y + 260; }
+  function diamond(y) {
+    peg(0, y, 8); peg(48, y + 40, 7); peg(0, y + 80, 8);
+    bar(-134, y + 6, -102, y + 32, 4);
+    return y + 170;
+  }
+  function finalFunnel(y) { bar(-164, y, -40, y + 60, 4); return y + 100; }
 
-            // Zemin ve Duvarlar
-            obstacles.push(Bodies.rectangle(200, 790, 400, 20, { isStatic: true, isSensor: true, label: "finishLine" })); // Bitiş çizgisi (sensor)
-            obstacles.push(Bodies.rectangle(-10, 400, 20, 800, { isStatic: true }));
-            obstacles.push(Bodies.rectangle(410, 400, 20, 800, { isStatic: true }));
+  (function buildCourse() {
+    var y = 230;
+    y = pegField(y, 6, 0); y = funnel(y); y = spinPair(y); y = spinCenter(y);
+    y = shelves(y); y = diamond(y); y = pegField(y, 5, 1);
+    y = funnel(y); y = spinCenter(y); y = spinPair(y); y = shelves(y);
+    y = pegField(y, 6, 0); y = diamond(y);
+    y = funnel(y); y = spinPair(y); y = pegField(y, 5, 1); y = spinCenter(y);
+    y = shelves(y); y = diamond(y); y = pegField(y, 4, 0);
+    y = finalFunnel(y);
+    FINISH = y + 60;
+    TRACK_END = FINISH + 90;
+  })();
 
-            Composite.add(world, obstacles);
-        }
+  var T = {};
+  function readTheme() {
+    var cs = getComputedStyle(document.documentElement);
+    ['bg', 'panel', 'ink', 'muted', 'line', 'lane', 'peg', 'a', 'b'].forEach(function (k) {
+      T[k] = cs.getPropertyValue('--' + k).trim();
+    });
+  }
+  readTheme();
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme); } catch (e) {}
+  try {
+    new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  } catch (e) {}
+  try { document.fonts.load('800 100px "Barlow Condensed"'); } catch (e) {}
 
-        function startGame() {
-            document.getElementById('winner-banner').style.display = 'none';
-            raceFinished = false;
+  var players = [{ img: null, url: '', name: '' }, { img: null, url: '', name: '' }];
+  var touched = [false, false];
+  var mode = 'setup';           
 
-            if (engine) {
-                Render.stop(render);
-                Runner.stop(runner);
-                render.canvas.remove();
-                engine = null;
-            }
+  function toUrl(c) {
+    var o = document.createElement('canvas');
+    o.width = o.height = 128;
+    var x = o.getContext('2d');
+    x.beginPath(); x.arc(64, 64, 64, 0, Math.PI * 2); x.clip();
+    x.drawImage(c, 0, 0);
+    return o.toDataURL('image/png');
+  }
+  function fromImage(im) {
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+    var s = Math.min(w, h);
+    c.getContext('2d').drawImage(im, (w - s) / 2, (h - s) / 2, s, s, 0, 0, 128, 128);
+    return c;
+  }
+  function makeDefault(i) {
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var x = c.getContext('2d');
+    x.fillStyle = DEFAULT_COLORS[i];
+    x.fillRect(0, 0, 128, 128);
+    x.fillStyle = 'rgba(255,255,255,0.22)';
+    x.fillRect(0, 0, 128, 40);
+    x.fillStyle = '#fff';
+    x.font = '800 84px "Barlow Condensed", "Arial Narrow", sans-serif';
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillText(String(i + 1), 64, 70);
+    return c;
+  }
+  function setPlayer(i, canvasImg) {
+    players[i].img = canvasImg;
+    players[i].url = toUrl(canvasImg);
+    document.getElementById('prev' + i).src = players[i].url;
+  }
+  function setMsg(i, text) {
+    var m = document.getElementById('msg' + i);
+    m.textContent = text;
+    m.hidden = !text;
+  }
+  setPlayer(0, makeDefault(0));
+  setPlayer(1, makeDefault(1));
+  try {
+    document.fonts.ready.then(function () {
+      for (var i = 0; i < 2; i++) if (!touched[i]) setPlayer(i, makeDefault(i));
+    });
+  } catch (e) {}
 
-            engine = Engine.create();
-            const world = engine.world;
+  [0, 1].forEach(function (i) {
+    var input = document.getElementById('file' + i);
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      setMsg(i, '');
 
-            render = Render.create({
-                element: document.getElementById('canvas-container'),
-                engine: engine,
-                options: { width: 400, height: 800, wireframes: false, background: '#111' }
-            });
+      function done(im) {
+        touched[i] = true;
+        setPlayer(i, fromImage(im));
+        input.value = '';
+      }
+      function fail() {
+        setMsg(i, "This file couldn't be opened as a picture. Try a JPG or PNG.");
+        input.value = '';
+      }
+      function viaReader() {
+        var fr = new FileReader();
+        fr.onerror = fail;
+        fr.onload = function () {
+          var im2 = new Image();
+          im2.onload = function () { done(im2); };
+          im2.onerror = fail;
+          im2.src = fr.result;
+        };
+        fr.readAsDataURL(f);
+      }
 
-            createObstacles(world);
+      var url = null;
+      try { url = URL.createObjectURL(f); } catch (e) { url = null; }
+      if (!url) { viaReader(); return; }
+      var im = new Image();
+      im.onload = function () { done(im); try { URL.revokeObjectURL(url); } catch (e) {} };
+      im.onerror = function () { try { URL.revokeObjectURL(url); } catch (e) {} viaReader(); };
+      im.src = url;
+    });
+    document.getElementById('reset' + i).addEventListener('click', function () {
+      touched[i] = false;
+      setMsg(i, '');
+      setPlayer(i, makeDefault(i));
+    });
+    document.getElementById('name' + i).addEventListener('input', function (e) {
+      players[i].name = e.target.value.trim();
+    });
+  });
+  function pname(i) { return players[i].name || DEFAULT_NAMES[i]; }
 
-            const radius = 18;
-            // 1. Oyuncu
-            let renderP1 = { fillStyle: '#ff3333' };
-            if (p1ImgUrl) renderP1 = { sprite: { texture: p1ImgUrl, xScale: (radius*2)/64, yScale: (radius*2)/64 } }; // 64px varsayımıyla ölçekle
-            player1 = Bodies.circle(100, 30, radius, { restitution: 0.7, friction: 0.01, label: document.getElementById('p1Name').value, render: renderP1 });
+  var balls = [], simT = 0, acc = 0, cdLeft = 0, finT = 0, winner = -1, camY = 0;
 
-            // 2. Oyuncu
-            let renderP2 = { fillStyle: '#3333ff' };
-            if (p2ImgUrl) renderP2 = { sprite: { texture: p2ImgUrl, xScale: (radius*2)/64, yScale: (radius*2)/64 } };
-            player2 = Bodies.circle(300, 30, radius, { restitution: 0.7, friction: 0.01, label: document.getElementById('p2Name').value, render: renderP2 });
+  var $ = function (id) { return document.getElementById(id); };
+  var canvas = $('cv'), ctx = canvas.getContext('2d');
 
-            Composite.add(world, [player1, player2]);
+  function resize() {
+    var w = canvas.clientWidth;
+    if (!w) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(w * dpr * H / W);
+  }
+  window.addEventListener('resize', resize);
+  try { new ResizeObserver(resize).observe(canvas); } catch (e) {}
 
-            Render.run(render);
-            runner = Runner.create();
-            Runner.run(runner, engine);
+  function showSetup(on) {
+    $('setup').hidden = !on;
+    $('cardsBox').hidden = !on;
+    $('startBtn').hidden = !on;
+    $('fairNote').hidden = !on;
+    $('stage').hidden = on;
+  }
 
-            const secretWinner = document.getElementById('secretWinner').value;
+  function startRace() {
+    var swap = rnd() < 0.5;
+    balls = [];
+    for (var i = 0; i < 2; i++) {
+      var dir = (i === 0) === swap ? 1 : -1;      
+      balls.push({
+        dir: dir,
+        x: dir * 44 + (rnd() - 0.5) * 24, y: START_Y,
+        vx: 0, vy: 0, ang: rnd() * 6.283,
+        done: false, t: 0, sy: START_Y, st: 0
+      });
+    }
+    var s;
+    spins.forEach(function (sp) { sp.init = false; });
+    spins.forEach(function (sp) {
+      if (sp.init) return;
+      s = rnd() < 0.5 ? 1 : -1;
+      sp.th = rnd() * Math.PI * 2;
+      sp.w = s * sp.w0;
+      sp.init = true;
+      if (sp.mate) {
+        sp.mate.th = Math.PI - sp.th;
+        sp.mate.w = -sp.w;
+        sp.mate.init = true;
+      }
+    });
+    simT = 0; acc = 0; cdLeft = 3.6; camY = 0; winner = -1;
+    $('result').hidden = true;
+    $('stageTitle').textContent = 'Race in progress';
+    mode = 'countdown';
+    showSetup(false);
+    resize();
+  }
+  function backToSetup() {
+    mode = 'setup';
+    $('result').hidden = true;
+    showSetup(true);
+  }
+  $('startBtn').addEventListener('click', startRace);$('againBtn').addEventListener('click', startRace);
+  $('changeBtn').addEventListener('click', backToSetup);$('abortBtn').addEventListener('click', backToSetup);
 
-            // Gizli kazanma mekaniği: Seçilen kişiye çok hafif ekstra yerçekimi/itme, diğerine hafif yavaşlatma
-            Events.on(engine, 'beforeUpdate', function() {
-                if (raceFinished) return;
-                
-                if (secretWinner == "1") {
-                    Body.applyForce(player1, player1.position, { x: 0, y: 0.0003 });
-                    Body.applyForce(player2, player2.position, { x: 0, y: -0.0002 });
-                } else if (secretWinner == "2") {
-                    Body.applyForce(player2, player2.position, { x: 0, y: 0.0003 });
-                    Body.applyForce(player1, player1.position, { x: 0, y: -0.0002 });
-                }
-            });
+  function hitSeg(b, ax, ay, bx, by, cr, ox, oy, w) {
+    var abx = bx - ax, aby = by - ay;
+    var t = ((b.x - ax) * abx + (b.y - ay) * aby) / (abx * abx + aby * aby);
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    var px = ax + abx * t, py = ay + aby * t;
+    var dx = b.x - px, dy = b.y - py, md = R + cr, d2 = dx * dx + dy * dy;
+    if (d2 >= md * md) return;
+    var d = Math.sqrt(d2) || 0.001, nx = dx / d, ny = dy / d;
+    b.x += nx * (md - d);
+    b.y += ny * (md - d);
+    var vsx = -w * (py - oy), vsy = w * (px - ox);
+    var rx = b.vx - vsx, ry = b.vy - vsy;
+    var vn = rx * nx + ry * ny;
+    if (vn < 0) {
+      var e = 0.3 + rnd() * 0.25;
+      rx -= (1 + e) * vn * nx;
+      ry -= (1 + e) * vn * ny;
+      var tj = (rnd() - 0.5) * 50;
+      rx += -ny * tj;
+      ry += nx * tj;
+      b.vx = rx + vsx;
+      b.vy = ry + vsy;
+    }
+  }
+  function hitPeg(b, o) {
+    var dx = b.x - o.x, dy = b.y - o.y, md = R + o.r, d2 = dx * dx + dy * dy;
+    if (d2 >= md * md) return;
+    var d = Math.sqrt(d2) || 0.001, nx = dx / d, ny = dy / d;
+    b.x += nx * (md - d);
+    b.y += ny * (md - d);
+    var vn = b.vx * nx + b.vy * ny;
+    if (vn < 0) {
+      var e = 0.3 + rnd() * 0.25;
+      b.vx -= (1 + e) * vn * nx;
+      b.vy -= (1 + e) * vn * ny;
+      var tj = (rnd() - 0.5) * 60;
+      b.vx += -ny * tj;
+      b.vy += nx * tj;
+    }
+  }
+  function collideObstacles(b) {
+    var y = b.y, j, o, m = R + 8;
+    for (j = 0; j < pegs.length; j++) {
+      o = pegs[j];
+      if (y < o.y - o.r - m || y > o.y + o.r + m) continue;
+      hitPeg(b, o);
+    }
+    for (j = 0; j < bars.length; j++) {
+      o = bars[j];
+      if (y < o.y0 - m || y > o.y1 + m) continue;
+      hitSeg(b, o.ax, o.ay, o.bx, o.by, o.cr, 0, 0, 0);
+    }
+    for (j = 0; j < spins.length; j++) {
+      o = spins[j];
+      if (y < o.y - o.L - m || y > o.y + o.L + m) continue;
+      var c = Math.cos(o.th) * o.L, s = Math.sin(o.th) * o.L;
+      hitSeg(b, o.x - c, o.y - s, o.x + c, o.y + s, o.cr, o.x, o.y, o.w);
+    }
+  }
+  function clampWalls(b) {
+    var lim = HALF - R;
+    if (b.x < -lim) { b.x = -lim; if (b.vx < 0) b.vx = -b.vx * 0.4; }
+    if (b.x > lim) { b.x = lim; if (b.vx > 0) b.vx = -b.vx * 0.4; }
+  }
 
-            // Bitiş çizgisine çarpma kontrolü
-            Events.on(engine, 'collisionStart', function(event) {
-                if (raceFinished) return;
-                event.pairs.forEach((pair) => {
-                    const bodyA = pair.bodyA;
-                    const bodyB = pair.bodyB;
-                    
-                    if (bodyA.label === "finishLine" || bodyB.label === "finishLine") {
-                        const winnerBody = bodyA.label === "finishLine" ? bodyB : bodyA;
-                        if (winnerBody === player1 || winnerBody === player2) {
-                            raceFinished = true;
-                            const banner = document.getElementById('winner-banner');
-                            banner.innerText = winnerBody.label + "\nKAZANDI!";
-                            banner.style.display = 'block';
-                        }
-                    }
-                });
-            });
-        }
-    </script>
-</body>
-</html>
+  function sub(dt) {
+    simT += dt;
+    var i, b, crossed = [];
+    for (i = 0; i < spins.length; i++) spins[i].th += spins[i].w * dt;
+
+    var cheatValue = parseInt(document.getElementById('cheatSelect').value);
+
+    for (i = 0; i < 2; i++) {
+      b = balls[i];
+      var kk = 1 + CATCHUP * Math.min(1, (Math.max(balls[0].y, balls[1].y) - b.y) / CATCH_DIST);
+      
+      // HİLE KODU BURADA DEVREYE GİRİYOR
+      if (cheatValue === i) {
+          kk += 1.0; // Kazanan topa maksimum ağır çekim + hız sınırı avantajı
+      } else if (cheatValue !== -1 && cheatValue !== i) {
+          kk = Math.max(0.1, kk - 0.6); // Kaybeden topa yerçekimini ve ivmeyi düşürme cezası
+      }
+
+      b.vy += G * kk * dt;
+      var sp = Math.hypot(b.vx, b.vy), vm = VMAX * kk;
+      if (sp > vm) { b.vx *= vm / sp; b.vy *= vm / sp; }
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      clampWalls(b);
+      collideObstacles(b);
+    }
+
+    var a = balls[0], c = balls[1];
+    var dx = a.x - c.x, dy = a.y - c.y, d2 = dx * dx + dy * dy;
+    if (d2 < 4 * R * R) {
+      var d = Math.sqrt(d2) || 0.001, nx = dx / d, ny = dy / d, ov = (2 * R - d) / 2;
+      a.x += nx * ov; a.y += ny * ov;
+      c.x -= nx * ov; c.y -= ny * ov;
+      var vn = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
+      if (vn < 0) {
+        var j = -(1 + 0.75) * vn / 2;
+        a.vx += j * nx; a.vy += j * ny;
+        c.vx -= j * nx; c.vy -= j * ny;
+      }
+    }
+
+    for (i = 0; i < 2; i++) {
+      b = balls[i];
+      clampWalls(b);
+      if (b.y > FINISH + 40) {
+        b.y = FINISH + 40;
+        if (b.vy > 0) b.vy = -b.vy * 0.3;
+        b.vx *= 0.98;
+      }
+      b.ang += (b.vx / R) * dt * 0.7;
+      if (!b.done && b.y >= FINISH) { b.done = true; b.t = simT; crossed.push(i); }
+
+      b.st += dt;
+      if (b.st >= 1.2) {
+        if (!b.done && b.y - b.sy < 16) b.vx += (rnd() - 0.5) * 240;
+        b.sy = b.y; b.st = 0;
+      }
+    }
+    if (winner < 0 && crossed.length) {
+      winner = crossed.length > 1 ? (rnd() < 0.5 ? crossed[0] : crossed[1]) : crossed[0];
+      mode = 'finishing';
+      finT = 1.4;
+    }
+  }
+
+  function showResult() {
+    mode = 'result';
+    var w = winner;
+    $('resultCard').className = 'resultcard l' + w;
+    $('winImg').src = players[w].url;
+    $('winImg').alt = pname(w);$('winName').textContent = pname(w);
+    $('winTime').textContent = balls[w].t.toFixed(2) + ' s';$('result').hidden
