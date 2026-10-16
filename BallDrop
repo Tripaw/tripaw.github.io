@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Düşüş Yarışı</title>
+    <!-- Matter.js (Fizik motoru) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        .controls { display: flex; gap: 20px; margin-bottom: 20px; background: #2a2a2a; padding: 15px; border-radius: 10px; }
+        .player-setup { display: flex; flex-direction: column; gap: 5px; }
+        input[type="text"] { padding: 5px; border-radius: 5px; border: none; }
+        input[type="file"] { font-size: 12px; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        button:hover { background: #45a049; }
+        #canvas-container { position: relative; border: 2px solid #444; background: #000; }
+        /* Gizli kazanma seçici - dışarıdan normal bir ayar gibi görünür */
+        .secret-select { opacity: 0.3; background: transparent; color: white; border: 1px solid #555; font-size: 10px; margin-top: 10px; }
+        .secret-select:hover { opacity: 1; }
+        #winner-banner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; font-weight: bold; color: #FFD700; text-shadow: 2px 2px 5px #000; display: none; z-index: 10; text-align: center;}
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="player-setup">
+            <label>1. Oyuncu (Kırmızı)</label>
+            <input type="text" id="p1Name" value="Oyuncu 1">
+            <input type="file" id="p1Image" accept="image/*">
+        </div>
+        <div class="player-setup">
+            <label>2. Oyuncu (Mavi)</label>
+            <input type="text" id="p2Name" value="Oyuncu 2">
+            <input type="file" id="p2Image" accept="image/*">
+        </div>
+        <div class="player-setup">
+            <button onclick="startGame()">Yarışı Başlat</button>
+            <!-- Kimsenin anlamayacağı gizli ayar -->
+            <select id="secretWinner" class="secret-select">
+                <option value="0">Fizik (Rastgele)</option>
+                <option value="1">Sol (1. Oyuncu) Kazansın</option>
+                <option value="2">Sağ (2. Oyuncu) Kazansın</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="winner-banner"></div>
+    </div>
+
+    <script>
+        const Engine = Matter.Engine,
+              Render = Matter.Render,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Events = Matter.Events,
+              Body = Matter.Body;
+
+        let engine, render, runner;
+        let player1, player2;
+        let p1ImgUrl = null, p2ImgUrl = null;
+        let raceFinished = false;
+
+        // Resim yükleme işlemleri
+        document.getElementById('p1Image').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) p1ImgUrl = URL.createObjectURL(file);
+        });
+        document.getElementById('p2Image').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) p2ImgUrl = URL.createObjectURL(file);
+        });
+
+        function createObstacles(world) {
+            const obstacles = [];
+            // Nokta engeller (Plinko tarzı)
+            for (let y = 150; y < 600; y += 80) {
+                let offset = (y / 80) % 2 === 0 ? 0 : 40;
+                for (let x = 20; x < 400; x += 80) {
+                    obstacles.push(Bodies.circle(x + offset, y, 8, { isStatic: true, render: { fillStyle: '#ffffff' } }));
+                }
+            }
+
+            // Sabit çizgi engeller
+            obstacles.push(Bodies.rectangle(100, 250, 100, 10, { isStatic: true, angle: Math.PI / 6, render: { fillStyle: '#ff9900' } }));
+            obstacles.push(Bodies.rectangle(300, 400, 100, 10, { isStatic: true, angle: -Math.PI / 6, render: { fillStyle: '#ff9900' } }));
+
+            // Dönen engeller (Pervaneler)
+            const rotator1 = Bodies.rectangle(200, 300, 120, 10, { isStatic: true, render: { fillStyle: '#ff0055' } });
+            const rotator2 = Bodies.rectangle(200, 500, 120, 10, { isStatic: true, render: { fillStyle: '#ff0055' } });
+            obstacles.push(rotator1, rotator2);
+
+            // Pervaneleri döndürme mantığı
+            Events.on(engine, 'beforeUpdate', function() {
+                Body.setAngle(rotator1, rotator1.angle + 0.03);
+                Body.setAngle(rotator2, rotator2.angle - 0.05);
+            });
+
+            // Zemin ve Duvarlar
+            obstacles.push(Bodies.rectangle(200, 790, 400, 20, { isStatic: true, isSensor: true, label: "finishLine" })); // Bitiş çizgisi (sensor)
+            obstacles.push(Bodies.rectangle(-10, 400, 20, 800, { isStatic: true }));
+            obstacles.push(Bodies.rectangle(410, 400, 20, 800, { isStatic: true }));
+
+            Composite.add(world, obstacles);
+        }
+
+        function startGame() {
+            document.getElementById('winner-banner').style.display = 'none';
+            raceFinished = false;
+
+            if (engine) {
+                Render.stop(render);
+                Runner.stop(runner);
+                render.canvas.remove();
+                engine = null;
+            }
+
+            engine = Engine.create();
+            const world = engine.world;
+
+            render = Render.create({
+                element: document.getElementById('canvas-container'),
+                engine: engine,
+                options: { width: 400, height: 800, wireframes: false, background: '#111' }
+            });
+
+            createObstacles(world);
+
+            const radius = 18;
+            // 1. Oyuncu
+            let renderP1 = { fillStyle: '#ff3333' };
+            if (p1ImgUrl) renderP1 = { sprite: { texture: p1ImgUrl, xScale: (radius*2)/64, yScale: (radius*2)/64 } }; // 64px varsayımıyla ölçekle
+            player1 = Bodies.circle(100, 30, radius, { restitution: 0.7, friction: 0.01, label: document.getElementById('p1Name').value, render: renderP1 });
+
+            // 2. Oyuncu
+            let renderP2 = { fillStyle: '#3333ff' };
+            if (p2ImgUrl) renderP2 = { sprite: { texture: p2ImgUrl, xScale: (radius*2)/64, yScale: (radius*2)/64 } };
+            player2 = Bodies.circle(300, 30, radius, { restitution: 0.7, friction: 0.01, label: document.getElementById('p2Name').value, render: renderP2 });
+
+            Composite.add(world, [player1, player2]);
+
+            Render.run(render);
+            runner = Runner.create();
+            Runner.run(runner, engine);
+
+            const secretWinner = document.getElementById('secretWinner').value;
+
+            // Gizli kazanma mekaniği: Seçilen kişiye çok hafif ekstra yerçekimi/itme, diğerine hafif yavaşlatma
+            Events.on(engine, 'beforeUpdate', function() {
+                if (raceFinished) return;
+                
+                if (secretWinner == "1") {
+                    Body.applyForce(player1, player1.position, { x: 0, y: 0.0003 });
+                    Body.applyForce(player2, player2.position, { x: 0, y: -0.0002 });
+                } else if (secretWinner == "2") {
+                    Body.applyForce(player2, player2.position, { x: 0, y: 0.0003 });
+                    Body.applyForce(player1, player1.position, { x: 0, y: -0.0002 });
+                }
+            });
+
+            // Bitiş çizgisine çarpma kontrolü
+            Events.on(engine, 'collisionStart', function(event) {
+                if (raceFinished) return;
+                event.pairs.forEach((pair) => {
+                    const bodyA = pair.bodyA;
+                    const bodyB = pair.bodyB;
+                    
+                    if (bodyA.label === "finishLine" || bodyB.label === "finishLine") {
+                        const winnerBody = bodyA.label === "finishLine" ? bodyB : bodyA;
+                        if (winnerBody === player1 || winnerBody === player2) {
+                            raceFinished = true;
+                            const banner = document.getElementById('winner-banner');
+                            banner.innerText = winnerBody.label + "\nKAZANDI!";
+                            banner.style.display = 'block';
+                        }
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
