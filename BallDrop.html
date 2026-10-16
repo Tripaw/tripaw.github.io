@@ -908,21 +908,11 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
   // ---- Çizim (Yumuşak Neon Katmanlı) ----
   function drawBall(i) {
     var b = balls[i];
-    var col = i === 0 ? T.a : T.b;
     ctx.save();
     ctx.translate(CX + b.x, b.y - camY);
-    // Top etrafında hafif neon halesi
-    ctx.beginPath();
-    ctx.arc(0, 0, R + 5.5, 0, Math.PI * 2);
-    ctx.strokeStyle = col;
-    ctx.globalAlpha = 0.28;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
     ctx.rotate(b.ang);
-    ctx.beginPath(); ctx.arc(0, 0, R + 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = col; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, R + 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#000'; ctx.fill();
     ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.clip();
     ctx.drawImage(players[i].img, -R, -R, R * 2, R * 2);
     ctx.restore();
