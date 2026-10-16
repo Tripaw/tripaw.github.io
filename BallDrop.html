@@ -5,6 +5,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500;600&display=swap">
 <style>
+/* Düzen: tek sütun. Önce kurulum (iki yuvarlak kartı), başlayınca tam ekran ortak pist ve sonuç kartı. */
 :root {
   --bg: #EDF0F1;
   --panel: #FFFFFF;
@@ -68,7 +69,7 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.wrap { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; position: relative; }
+.wrap { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 
 h1 {
   font-family: var(--font-display);
@@ -117,6 +118,7 @@ h1 {
 }
 .name::placeholder { color: var(--muted); }
 
+/* Dosya seçici butonun tam üstünde, görünmez: dokunuş doğrudan seçiciye gider. */
 .filewrap { position: relative; width: 100%; }
 .fileinp {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -234,27 +236,13 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
 (function () {
   'use strict';
 
-  // --- GİZLİ HİLE KUTUSUNU HTML'İ BOZMAMAK İÇİN JS İLE EKLİYORUZ ---
-  var cheatSelect = document.createElement('select');
-  cheatSelect.style.position = 'absolute';
-  cheatSelect.style.top = '0px';
-  cheatSelect.style.right = '0px';
-  cheatSelect.style.width = '50px';
-  cheatSelect.style.height = '50px';
-  cheatSelect.style.opacity = '0'; // Kimse göremez
-  cheatSelect.style.cursor = 'pointer';
-  cheatSelect.style.zIndex = '9999';
-  cheatSelect.innerHTML = '<option value="-1">Adil Fırlatma</option><option value="0">1. Top (Sol) Kesin Kazansın</option><option value="1">2. Top (Sağ) Kesin Kazansın</option>';
-  document.body.appendChild(cheatSelect);
-  
-  var activeCheat = -1; // Hile bilgisini tutacak değişken
-  // -----------------------------------------------------------------
-
+  // ---- Pist ölçüleri (mantıksal birim; 20 birim = 1 m) ----
+  // Tüm engeller pistin orta çizgisine göre (dx) tanımlanır ve sol/sağ aynalanır.
   var W = 360, H = 600;
-  var CX = 180, HALF = 164;                 
-  var R = 14;                               
+  var CX = 180, HALF = 164;                 // pist x: 16 .. 344
+  var R = 14;                               // yuvarlak yarıçapı
   var START_Y = 70;
-  var FINISH = 0, TRACK_END = 0, PX_PER_M = 20;   
+  var FINISH = 0, TRACK_END = 0, PX_PER_M = 20;   // pist kurulunca hesaplanır
   var G = 370, VMAX = 235, STEP = 1 / 240;
   var CATCHUP = 0.9, CATCH_DIST = 250;
   var DEFAULT_NAMES = ['Orange', 'Blue'];
@@ -289,6 +277,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     }
   }
 
+  // Pist bölümleri; her biri başladığı y'yi alır, bittiği y'yi döndürür.
   function pegField(y, rows, par) {
     for (var i = 0; i < rows; i++) {
       var odd = (i + par) % 2 === 1;
@@ -309,10 +298,13 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
 
   (function buildCourse() {
     var y = 230;
+    // 1. tur
     y = pegField(y, 6, 0); y = funnel(y); y = spinPair(y); y = spinCenter(y);
     y = shelves(y); y = diamond(y); y = pegField(y, 5, 1);
+    // 2. tur
     y = funnel(y); y = spinCenter(y); y = spinPair(y); y = shelves(y);
     y = pegField(y, 6, 0); y = diamond(y);
+    // 3. tur
     y = funnel(y); y = spinPair(y); y = pegField(y, 5, 1); y = spinCenter(y);
     y = shelves(y); y = diamond(y); y = pegField(y, 4, 0);
     y = finalFunnel(y);
@@ -320,6 +312,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     TRACK_END = FINISH + 90;
   })();
 
+  // ---- Tema renkleri (tuval için) ----
   var T = {};
   function readTheme() {
     var cs = getComputedStyle(document.documentElement);
@@ -328,4 +321,448 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     });
   }
   readTheme();
-  try { window.matchMedia('(prefers-color-scheme: dark
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme); } catch (e) {}
+  try {
+    new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  } catch (e) {}
+  try { document.fonts.load('800 100px "Barlow Condensed"'); } catch (e) {}
+
+  // ---- Oyuncular ve resimler ----
+  var players = [{ img: null, url: '', name: '' }, { img: null, url: '', name: '' }];
+  var touched = [false, false];
+  var mode = 'setup';           // setup | countdown | racing | finishing | result
+
+  function toUrl(c) {
+    var o = document.createElement('canvas');
+    o.width = o.height = 128;
+    var x = o.getContext('2d');
+    x.beginPath(); x.arc(64, 64, 64, 0, Math.PI * 2); x.clip();
+    x.drawImage(c, 0, 0);
+    return o.toDataURL('image/png');
+  }
+  function fromImage(im) {
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+    var s = Math.min(w, h);
+    c.getContext('2d').drawImage(im, (w - s) / 2, (h - s) / 2, s, s, 0, 0, 128, 128);
+    return c;
+  }
+  function makeDefault(i) {
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var x = c.getContext('2d');
+    x.fillStyle = DEFAULT_COLORS[i];
+    x.fillRect(0, 0, 128, 128);
+    x.fillStyle = 'rgba(255,255,255,0.22)';
+    x.fillRect(0, 0, 128, 40);
+    x.fillStyle = '#fff';
+    x.font = '800 84px "Barlow Condensed", "Arial Narrow", sans-serif';
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillText(String(i + 1), 64, 70);
+    return c;
+  }
+  function setPlayer(i, canvasImg) {
+    players[i].img = canvasImg;
+    players[i].url = toUrl(canvasImg);
+    document.getElementById('prev' + i).src = players[i].url;
+  }
+  function setMsg(i, text) {
+    var m = document.getElementById('msg' + i);
+    m.textContent = text;
+    m.hidden = !text;
+  }
+  setPlayer(0, makeDefault(0));
+  setPlayer(1, makeDefault(1));
+  try {
+    document.fonts.ready.then(function () {
+      for (var i = 0; i < 2; i++) if (!touched[i]) setPlayer(i, makeDefault(i));
+    });
+  } catch (e) {}
+
+  [0, 1].forEach(function (i) {
+    var input = document.getElementById('file' + i);
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      setMsg(i, '');
+
+      function done(im) {
+        touched[i] = true;
+        setPlayer(i, fromImage(im));
+        input.value = '';
+      }
+      function fail() {
+        setMsg(i, "This file couldn't be opened as a picture. Try a JPG or PNG.");
+        input.value = '';
+      }
+      function viaReader() {
+        var fr = new FileReader();
+        fr.onerror = fail;
+        fr.onload = function () {
+          var im2 = new Image();
+          im2.onload = function () { done(im2); };
+          im2.onerror = fail;
+          im2.src = fr.result;
+        };
+        fr.readAsDataURL(f);
+      }
+
+      var url = null;
+      try { url = URL.createObjectURL(f); } catch (e) { url = null; }
+      if (!url) { viaReader(); return; }
+      var im = new Image();
+      im.onload = function () { done(im); try { URL.revokeObjectURL(url); } catch (e) {} };
+      im.onerror = function () { try { URL.revokeObjectURL(url); } catch (e) {} viaReader(); };
+      im.src = url;
+    });
+    document.getElementById('reset' + i).addEventListener('click', function () {
+      touched[i] = false;
+      setMsg(i, '');
+      setPlayer(i, makeDefault(i));
+    });
+    document.getElementById('name' + i).addEventListener('input', function (e) {
+      players[i].name = e.target.value.trim();
+    });
+  });
+  function pname(i) { return players[i].name || DEFAULT_NAMES[i]; }
+
+  // ---- Yarış durumu ----
+  var balls = [], simT = 0, acc = 0, cdLeft = 0, finT = 0, winner = -1, camY = 0;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var canvas = $('cv'), ctx = canvas.getContext('2d');
+
+  function resize() {
+    var w = canvas.clientWidth;
+    if (!w) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(w * dpr * H / W);
+  }
+  window.addEventListener('resize', resize);
+  try { new ResizeObserver(resize).observe(canvas); } catch (e) {}
+
+  function showSetup(on) {
+    $('setup').hidden = !on;
+    $('cardsBox').hidden = !on;
+    $('startBtn').hidden = !on;
+    $('fairNote').hidden = !on;
+    $('stage').hidden = on;
+  }
+
+  function startRace() {
+    // Taraflar rastgele atanır; başlangıç sapmaları iki tarafta aynı dağılımdadır.
+    var swap = rnd() < 0.5;
+    balls = [];
+    for (var i = 0; i < 2; i++) {
+      var dir = (i === 0) === swap ? 1 : -1;      // -1 sol, +1 sağ
+      balls.push({
+        dir: dir,
+        x: dir * 44 + (rnd() - 0.5) * 24, y: START_Y,
+        vx: 0, vy: 0, ang: rnd() * 6.283,
+        done: false, t: 0, sy: START_Y, st: 0
+      });
+    }
+    // Dönen çubuklar: eşler zıt yönde ve aynalı açıda; yön ve açı rastgele.
+    var s;
+    spins.forEach(function (sp) { sp.init = false; });
+    spins.forEach(function (sp) {
+      if (sp.init) return;
+      s = rnd() < 0.5 ? 1 : -1;
+      sp.th = rnd() * Math.PI * 2;
+      sp.w = s * sp.w0;
+      sp.init = true;
+      if (sp.mate) {
+        sp.mate.th = Math.PI - sp.th;
+        sp.mate.w = -sp.w;
+        sp.mate.init = true;
+      }
+    });
+    simT = 0; acc = 0; cdLeft = 3.6; camY = 0; winner = -1;
+    $('result').hidden = true;
+    $('stageTitle').textContent = 'Race in progress';
+    mode = 'countdown';
+    showSetup(false);
+    resize();
+  }
+  function backToSetup() {
+    mode = 'setup';
+    $('result').hidden = true;
+    showSetup(true);
+  }
+  $('startBtn').addEventListener('click', startRace);
+  $('againBtn').addEventListener('click', startRace);
+  $('changeBtn').addEventListener('click', backToSetup);
+  $('abortBtn').addEventListener('click', backToSetup);
+
+  // ---- Fizik ----
+  function hitSeg(b, ax, ay, bx, by, cr, ox, oy, w) {
+    var abx = bx - ax, aby = by - ay;
+    var t = ((b.x - ax) * abx + (b.y - ay) * aby) / (abx * abx + aby * aby);
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    var px = ax + abx * t, py = ay + aby * t;
+    var dx = b.x - px, dy = b.y - py, md = R + cr, d2 = dx * dx + dy * dy;
+    if (d2 >= md * md) return;
+    var d = Math.sqrt(d2) || 0.001, nx = dx / d, ny = dy / d;
+    b.x += nx * (md - d);
+    b.y += ny * (md - d);
+    var vsx = -w * (py - oy), vsy = w * (px - ox);
+    var rx = b.vx - vsx, ry = b.vy - vsy;
+    var vn = rx * nx + ry * ny;
+    if (vn < 0) {
+      var e = 0.3 + rnd() * 0.25;
+      rx -= (1 + e) * vn * nx;
+      ry -= (1 + e) * vn * ny;
+      var tj = (rnd() - 0.5) * 50;
+      rx += -ny * tj;
+      ry += nx * tj;
+      b.vx = rx + vsx;
+      b.vy = ry + vsy;
+    }
+  }
+  function hitPeg(b, o) {
+    var dx = b.x - o.x, dy = b.y - o.y, md = R + o.r, d2 = dx * dx + dy * dy;
+    if (d2 >= md * md) return;
+    var d = Math.sqrt(d2) || 0.001, nx = dx / d, ny = dy / d;
+    b.x += nx * (md - d);
+    b.y += ny * (md - d);
+    var vn = b.vx * nx + b.vy * ny;
+    if (vn < 0) {
+      var e = 0.3 + rnd() * 0.25;
+      b.vx -= (1 + e) * vn * nx;
+      b.vy -= (1 + e) * vn * ny;
+      var tj = (rnd() - 0.5) * 60;
+      b.vx += -ny * tj;
+      b.vy += nx * tj;
+    }
+  }
+  function collideObstacles(b) {
+    var y = b.y, j, o, m = R + 8;
+    for (j = 0; j < pegs.length; j++) {
+      o = pegs[j];
+      if (y < o.y - o.r - m || y > o.y + o.r + m) continue;
+      hitPeg(b, o);
+    }
+    for (j = 0; j < bars.length; j++) {
+      o = bars[j];
+      if (y < o.y0 - m || y > o.y1 + m) continue;
+      hitSeg(b, o.ax, o.ay, o.bx, o.by, o.cr, 0, 0, 0);
+    }
+    for (j = 0; j < spins.length; j++) {
+      o = spins[j];
+      if (y < o.y - o.L - m || y > o.y + o.L + m) continue;
+      var c = Math.cos(o.th) * o.L, s = Math.sin(o.th) * o.L;
+      hitSeg(b, o.x - c, o.y - s, o.x + c, o.y + s, o.cr, o.x, o.y, o.w);
+    }
+  }
+  function clampWalls(b) {
+    var lim = HALF - R;
+    if (b.x < -lim) { b.x = -lim; if (b.vx < 0) b.vx = -b.vx * 0.4; }
+    if (b.x > lim) { b.x = lim; if (b.vx > 0) b.vx = -b.vx * 0.4; }
+  }
+
+  function sub(dt) {
+    simT += dt;
+    var i, b, crossed = [];
+    for (i = 0; i < spins.length; i++) spins[i].th += spins[i].w * dt;
+
+    for (i = 0; i < 2; i++) {
+      b = balls[i];
+      // Geride kalan yuvarlak hızlanır; kural yalnızca konum farkına bakar, iki tarafa aynı uygulanır.
+      var kk = 1 + CATCHUP * Math.min(1, (Math.max(balls[0].y, balls[1].y) - b.y) / CATCH_DIST);
+      b.vy += G * kk * dt;
+      var sp = Math.hypot(b.vx, b.vy), vm = VMAX * kk;
+      if (sp > vm) { b.vx *= vm / sp; b.vy *= vm / sp; }
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      clampWalls(b);
+      collideObstacles(b);
+    }
+
+    // Yuvarlaklar birbirine çarpar (eşit kütle, simetrik itme).
+    var a = balls[0], c = balls[1];
+    var dx = a.x - c.x, dy = a.y - c.y, d2 = dx * dx + dy * dy;
+    if (d2 < 4 * R * R) {
+      var d = Math.sqrt(d2) || 0.001, nx = dx / d, ny = dy / d, ov = (2 * R - d) / 2;
+      a.x += nx * ov; a.y += ny * ov;
+      c.x -= nx * ov; c.y -= ny * ov;
+      var vn = (a.vx - c.vx) * nx + (a.vy - c.vy) * ny;
+      if (vn < 0) {
+        var j = -(1 + 0.75) * vn / 2;
+        a.vx += j * nx; a.vy += j * ny;
+        c.vx -= j * nx; c.vy -= j * ny;
+      }
+    }
+
+    for (i = 0; i < 2; i++) {
+      b = balls[i];
+      clampWalls(b);
+      if (b.y > FINISH + 40) {
+        b.y = FINISH + 40;
+        if (b.vy > 0) b.vy = -b.vy * 0.3;
+        b.vx *= 0.98;
+      }
+      b.ang += (b.vx / R) * dt * 0.7;
+      if (!b.done && b.y >= FINISH) { b.done = true; b.t = simT; crossed.push(i); }
+
+      b.st += dt;
+      if (b.st >= 1.2) {
+        if (!b.done && b.y - b.sy < 16) b.vx += (rnd() - 0.5) * 240;
+        b.sy = b.y; b.st = 0;
+      }
+    }
+    if (winner < 0 && crossed.length) {
+      winner = crossed.length > 1 ? (rnd() < 0.5 ? crossed[0] : crossed[1]) : crossed[0];
+      mode = 'finishing';
+      finT = 1.4;
+    }
+  }
+
+  function showResult() {
+    mode = 'result';
+    var w = winner;
+    $('resultCard').className = 'resultcard l' + w;
+    $('winImg').src = players[w].url;
+    $('winImg').alt = pname(w);
+    $('winName').textContent = pname(w);
+    $('winTime').textContent = balls[w].t.toFixed(2) + ' s';
+    $('result').hidden = false;
+    $('stageTitle').textContent = 'Race over';
+  }
+
+  // ---- Çizim ----
+  function drawBall(i) {
+    var b = balls[i];
+    ctx.save();
+    ctx.translate(CX + b.x, b.y - camY);
+    ctx.rotate(b.ang);
+    ctx.beginPath(); ctx.arc(0, 0, R + 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(players[i].img, -R, -R, R * 2, R * 2);
+    ctx.restore();
+  }
+  function line(x1, y1, x2, y2, w) {
+    ctx.beginPath();
+    ctx.moveTo(CX + x1, y1 - camY);
+    ctx.lineTo(CX + x2, y2 - camY);
+    ctx.lineWidth = w;
+    ctx.stroke();
+  }
+
+  function draw() {
+    var s = canvas.width / W;
+    if (!s) return;
+    ctx.setTransform(s, 0, 0, s, 0, 0);
+    ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H);
+
+    var x0 = CX - HALF, y, k, j;
+    ctx.fillStyle = T.lane;
+    ctx.fillRect(x0, -camY - 40, HALF * 2, TRACK_END + 80);
+
+    // başlangıç çizgisi
+    ctx.fillStyle = T.muted;
+    ctx.fillRect(x0, START_Y - 26 - camY, HALF * 2, 3);
+
+    // mesafe işaretleri
+    ctx.font = '600 10px "Barlow", sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    for (var m = 10; m < (FINISH - START_Y) / PX_PER_M; m += 10) {
+      y = START_Y + m * PX_PER_M - camY;
+      if (y < -10 || y > H + 10) continue;
+      ctx.fillStyle = T.line; ctx.fillRect(x0, y, HALF * 2, 1);
+      ctx.fillStyle = T.muted; ctx.fillText(m + ' m', x0 + 5, y - 2);
+    }
+
+    // engeller
+    ctx.fillStyle = T.peg;
+    for (j = 0; j < pegs.length; j++) {
+      y = pegs[j].y - camY;
+      if (y < -20 || y > H + 20) continue;
+      ctx.beginPath(); ctx.arc(CX + pegs[j].x, y, pegs[j].r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = T.peg; ctx.lineCap = 'round';
+    for (j = 0; j < bars.length; j++) {
+      var o = bars[j];
+      if (o.y1 - camY < -20 || o.y0 - camY > H + 20) continue;
+      line(o.ax, o.ay, o.bx, o.by, o.cr * 2);
+    }
+    ctx.strokeStyle = T.muted;
+    for (j = 0; j < spins.length; j++) {
+      var sp = spins[j];
+      if (sp.y + sp.L - camY < -20 || sp.y - sp.L - camY > H + 20) continue;
+      var cc = Math.cos(sp.th) * sp.L, ss = Math.sin(sp.th) * sp.L;
+      line(sp.x - cc, sp.y - ss, sp.x + cc, sp.y + ss, sp.cr * 2);
+      ctx.fillStyle = T.ink;
+      ctx.beginPath(); ctx.arc(CX + sp.x, sp.y - camY, 5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // bitiş çizgisi (damalı)
+    y = FINISH - camY;
+    if (y > -20 && y < H + 20) {
+      for (k = 0; k < (HALF * 2) / 8; k++) {
+        ctx.fillStyle = k % 2 ? T.ink : T.panel;
+        ctx.fillRect(x0 + k * 8, y, 8, 8);
+        ctx.fillStyle = k % 2 ? T.panel : T.ink;
+        ctx.fillRect(x0 + k * 8, y + 8, 8, 8);
+      }
+    }
+
+    if (balls.length) { drawBall(0); drawBall(1); }
+
+    // ilerleme çubukları
+    ctx.globalAlpha = 0.9; ctx.fillStyle = T.bg; ctx.fillRect(8, 4, W - 16, 28); ctx.globalAlpha = 1;
+    for (var i = 0; i < 2 && balls.length; i++) {
+      var by = 10 + i * 10, p = Math.max(0, Math.min(1, (balls[i].y - START_Y) / (FINISH - START_Y)));
+      ctx.fillStyle = T.line; ctx.fillRect(16, by, W - 32, 4);
+      ctx.fillStyle = i === 0 ? T.a : T.b; ctx.fillRect(16, by, (W - 32) * p, 4);
+      ctx.beginPath(); ctx.arc(16 + (W - 32) * p, by + 2, 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // geri sayım
+    var label = '';
+    if (mode === 'countdown') label = cdLeft > 0.6 ? String(Math.ceil(cdLeft - 0.6)) : '';
+    if ((mode === 'racing' || mode === 'finishing') && simT < 0.7) label = 'GO!';
+    if (label) {
+      ctx.font = '800 120px "Barlow Condensed", "Arial Narrow", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 10; ctx.strokeStyle = T.bg; ctx.strokeText(label, W / 2, 300);
+      ctx.fillStyle = T.ink; ctx.fillText(label, W / 2, 300);
+    }
+  }
+
+  // ---- Döngü ----
+  var last = 0;
+  function loop(now) {
+    var dt = Math.min(0.05, (now - last) / 1000 || 0);
+    last = now;
+
+    if (mode === 'countdown') {
+      cdLeft -= dt;
+      if (cdLeft <= 0.6) mode = 'racing';
+    }
+    if (mode === 'racing' || mode === 'finishing') {
+      acc += dt;
+      var n = 0;
+      while (acc >= STEP && n++ < 40) { sub(STEP); acc -= STEP; }
+    }
+    if (mode === 'finishing') {
+      finT -= dt;
+      if (finT <= 0) showResult();
+    }
+    if (mode !== 'setup') {
+      var lead = balls.length ? Math.max(balls[0].y, balls[1].y) : START_Y;
+      var target = Math.max(0, Math.min(TRACK_END - H, lead - H * 0.42));
+      if (mode === 'countdown') target = 0;
+      camY += (target - camY) * (1 - Math.exp(-6 * dt));
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>
