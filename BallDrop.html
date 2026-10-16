@@ -1,15 +1,4 @@
-<!doctype html>
-<html>
-<head>
-<meta charset=utf8>
-<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>
-:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}
-img{max-width:100%}
-[hidden]:not([hidden=until-found i]){display:none!important}
-</style>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Ball Race</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -77,4 +66,266 @@ body {
   line-height: 1.45;
   padding-block: 22px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; position: relative; }
+
+h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 46px;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  margin: 0;
+  text-wrap: balance;
+}
+.lead { margin: 8px 0 0; color: var(--muted); max-width: 38ch; }
+
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card {
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.l0 { --c: var(--a); }
+.l1 { --c: var(--b); }
+.tag {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.tag i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); display: block; }
+.preview {
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 4px solid #000;
+  background: var(--lane);
+  display: block;
+}
+.name {
+  width: 100%; min-width: 0;
+  font: inherit; font-size: 15px; text-align: center;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 8px;
+}
+.name::placeholder { color: var(--muted); }
+
+.filewrap { position: relative; width: 100%; }
+.fileinp {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; z-index: 1;
+}
+.filebtn {
+  display: block; width: 100%; text-align: center;
+  font-weight: 600; font-size: 15px;
+  border: 1.5px solid var(--ink); border-radius: 8px; padding: 9px 8px;
+}
+.filewrap:hover .filebtn,
+.fileinp:focus-visible + .filebtn { background: var(--ink); color: var(--bg); }
+.msg { margin: 0; font-size: 13px; color: var(--bad); text-align: center; }
+
+.linkbtn {
+  background: none; border: 0; padding: 2px; cursor: pointer;
+  font: inherit; font-size: 13px; color: var(--muted); text-decoration: underline;
+}
+button:focus-visible, .name:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
+
+.start {
+  width: 100%; cursor: pointer; border: 0; border-radius: 10px;
+  background: var(--btn); color: var(--btnink);
+  font-family: var(--font-display); font-weight: 800; font-size: 26px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 14px 16px;
+}
+.note { margin: 0; font-size: 14px; color: var(--muted); }
+
+.stage { width: min(100%, calc(78vh * 0.6)); width: min(100%, calc(78svh * 0.6)); margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.stagebar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.stagebar span {
+  font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.canvaswrap { position: relative; }
+canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+
+.result {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--scrim); border-radius: 10px;
+}
+.resultcard {
+  width: min(88%, 300px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 22px 18px 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+}
+.resultcard img { width: 96px; height: 96px; border-radius: 50%; border: 4px solid #000; display: block; margin-bottom: 6px; }
+.kicker { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.winner { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; }
+.time { color: var(--muted); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+.resultcard .start { font-size: 22px; padding: 11px 14px; }
+.resultcard .linkbtn { font-size: 14px; margin-top: 4px; }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <section id="setup" aria-label="Setup">
+    <h1>Ball Race</h1>
+    <p class="lead">Two balls race down the same track and bump into each other on the way. Pick their pictures, start the race, and stay out of it.</p>
+  </section>
+
+  <div id="cardsBox" class="cards">
+    <div class="card l0">
+      <div class="tag"><i></i>Ball 1</div>
+      <img id="prev0" class="preview" alt="Picture of ball 1">
+      <input id="name0" class="name" type="text" maxlength="14" placeholder="Orange" aria-label="Name of ball 1">
+      <div class="filewrap">
+        <input id="file0" class="fileinp" type="file" accept="image/*" aria-label="Choose a picture from your gallery for ball 1">
+        <span class="filebtn">Choose from gallery</span>
+      </div>
+      <p id="msg0" class="msg" role="alert" hidden></p>
+      <button id="reset0" class="linkbtn" type="button">Default picture</button>
+    </div>
+    <div class="card l1">
+      <div class="tag"><i></i>Ball 2</div>
+      <img id="prev1" class="preview" alt="Picture of ball 2">
+      <input id="name1" class="name" type="text" maxlength="14" placeholder="Blue" aria-label="Name of ball 2">
+      <div class="filewrap">
+        <input id="file1" class="fileinp" type="file" accept="image/*" aria-label="Choose a picture from your gallery for ball 2">
+        <span class="filebtn">Choose from gallery</span>
+      </div>
+      <p id="msg1" class="msg" role="alert" hidden></p>
+      <button id="reset1" class="linkbtn" type="button">Default picture</button>
+    </div>
+  </div>
+
+  <button id="startBtn" class="start" type="button">Start race</button>
+  <p id="fairNote" class="note">The track is an exact mirror image from left to right. The balls start from random sides, and nothing can be touched once the race begins. Both have an equal chance of winning.</p>
+
+  <section id="stage" class="stage" hidden aria-label="Race track">
+    <div class="stagebar">
+      <span id="stageTitle">Race in progress</span>
+      <button id="abortBtn" class="linkbtn" type="button">Cancel</button>
+    </div>
+    <div class="canvaswrap">
+      <canvas id="cv" role="img" aria-label="Two balls fall down the same track between obstacles and bump into each other"></canvas>
+      <div id="result" class="result" hidden>
+        <div id="resultCard" class="resultcard l0" role="status" aria-live="polite">
+          <img id="winImg" alt="">
+          <div class="kicker">Winner</div>
+          <div id="winName" class="winner"></div>
+          <div id="winTime" class="time"></div>
+          <button id="againBtn" class="start" type="button">Race again</button>
+          <button id="changeBtn" class="linkbtn" type="button">Change pictures</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // --- GİZLİ HİLE KUTUSUNU HTML'İ BOZMAMAK İÇİN JS İLE EKLİYORUZ ---
+  var cheatSelect = document.createElement('select');
+  cheatSelect.style.position = 'absolute';
+  cheatSelect.style.top = '0px';
+  cheatSelect.style.right = '0px';
+  cheatSelect.style.width = '50px';
+  cheatSelect.style.height = '50px';
+  cheatSelect.style.opacity = '0'; // Kimse göremez
+  cheatSelect.style.cursor = 'pointer';
+  cheatSelect.style.zIndex = '9999';
+  cheatSelect.innerHTML = '<option value="-1">Adil Fırlatma</option><option value="0">1. Top (Sol) Kesin Kazansın</option><option value="1">2. Top (Sağ) Kesin Kazansın</option>';
+  document.body.appendChild(cheatSelect);
+  
+  var activeCheat = -1; // Hile bilgisini tutacak değişken
+  // -----------------------------------------------------------------
+
+  var W = 360, H = 600;
+  var CX = 180, HALF = 164;                 
+  var R = 14;                               
+  var START_Y = 70;
+  var FINISH = 0, TRACK_END = 0, PX_PER_M = 20;   
+  var G = 370, VMAX = 235, STEP = 1 / 240;
+  var CATCHUP = 0.9, CATCH_DIST = 250;
+  var DEFAULT_NAMES = ['Orange', 'Blue'];
+  var DEFAULT_COLORS = ['#E8590C', '#1C6FD6'];
+
+  var rnd = (function () {
+    var b = new Uint32Array(1);
+    return function () {
+      try { crypto.getRandomValues(b); return b[0] / 4294967296; }
+      catch (e) { return Math.random(); }
+    };
+  })();
+
+  var pegs = [], bars = [], spins = [];
+  function peg(dx, y, r) {
+    pegs.push({ x: dx, y: y, r: r });
+    if (dx !== 0) pegs.push({ x: -dx, y: y, r: r });
+  }
+  function bar(x1, y1, x2, y2, cr) {
+    bars.push({ ax: x1, ay: y1, bx: x2, by: y2, cr: cr, y0: Math.min(y1, y2) - cr, y1: Math.max(y1, y2) + cr });
+    if (!(x1 === -x2 && y1 === y2)) {
+      bars.push({ ax: -x1, ay: y1, bx: -x2, by: y2, cr: cr, y0: Math.min(y1, y2) - cr, y1: Math.max(y1, y2) + cr });
+    }
+  }
+  function spin(dx, y, L, w0) {
+    var a = { x: dx, y: y, L: L, w0: w0, th: 0, w: 0, sg: 1, mate: null, cr: 4 };
+    spins.push(a);
+    if (dx !== 0) {
+      var c = { x: -dx, y: y, L: L, w0: w0, th: 0, w: 0, sg: -1, mate: a, cr: 4 };
+      a.mate = c;
+      spins.push(c);
+    }
+  }
+
+  function pegField(y, rows, par) {
+    for (var i = 0; i < rows; i++) {
+      var odd = (i + par) % 2 === 1;
+      (odd ? [26, 78, 130] : [0, 52, 104, 156]).forEach(function (dx) { peg(dx, y + i * 56, 5); });
+    }
+    return y + (rows - 1) * 56 + 90;
+  }
+  function funnel(y) { bar(-164, y, -36, y + 60, 4); peg(0, y + 120, 9); return y + 220; }
+  function spinPair(y) { spin(86, y, 46, 2.4); peg(152, y, 5); return y + 150; }
+  function spinCenter(y) { spin(0, y, 60, 2.0); return y + 170; }
+  function shelves(y) { bar(-24, y, -100, y + 40, 4); bar(-164, y + 120, -54, y + 170, 4); return y + 260; }
+  function diamond(y) {
+    peg(0, y, 8); peg(48, y + 40, 7); peg(0, y + 80, 8);
+    bar(-134, y + 6, -102, y + 32, 4);
+    return y + 170;
+  }
+  function finalFunnel(y) { bar(-164, y, -40, y + 60, 4); return y + 100; }
+
+  (function buildCourse() {
+    var y = 230;
+    y = pegField(y, 6, 0); y = funnel(y); y = spinPair(y); y = spinCenter(y);
+    y = shelves(y); y = diamond(y); y = pegField(y, 5, 1);
+    y = funnel(y); y = spinCenter(y); y = spinPair(y); y = shelves(y);
+    y = pegField(y, 6, 0); y = diamond(y);
+    y = funnel(y); y = spinPair(y); y = pegField(y, 5, 1); y = spinCenter(y);
+    y = shelves(y); y = diamond(y); y = pegField(y, 4, 0);
+    y = finalFunnel(y);
+    FINISH = y + 60;
+    TRACK_END = FINISH + 90;
+  })();
+
+  var T = {};
+  function readTheme() {
+    var cs = getComputedStyle(document.documentElement);
+    ['bg', 'panel', 'ink', 'muted', 'line', 'lane', 'peg', 'a', 'b'].forEach(function (k) {
+      T[k] = cs.getPropertyValue('--' + k).trim();
+    });
+  }
+  readTheme();
+  try { window.matchMedia('(prefers-color-scheme: dark
