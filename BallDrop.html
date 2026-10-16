@@ -87,20 +87,34 @@ h1 {
 .card {
   min-width: 0;
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--line);
   border-radius: 10px;
   padding: 14px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.card.is-rigged {
+  border-color: var(--c);
+  box-shadow: 0 0 0 1px var(--c);
 }
 .l0 { --c: var(--a); }
 .l1 { --c: var(--b); }
 .tag {
-  display: flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: 7px;
   font-family: var(--font-display); font-weight: 700; font-size: 14px;
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+  background: none; border: 1px solid transparent; border-radius: 999px;
+  padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+.tag:hover { color: var(--ink); border-color: var(--line); }
+.card.is-rigged .tag {
+  color: var(--ink);
+  border-color: var(--c);
+  background: var(--bg);
 }
 .tag i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); display: block; }
 .preview {
@@ -117,6 +131,63 @@ h1 {
   padding: 9px 8px;
 }
 .name::placeholder { color: var(--muted); }
+
+/* Başlangıç ekranı kazanan (hile) seçici */
+.rigbox {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.righead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rigopts {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.rigbtn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--muted);
+  border-radius: 7px;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.15s ease;
+}
+.rigbtn:hover { color: var(--ink); border-color: var(--muted); }
+.rigbtn i {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.rigbtn[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
 
 /* Dosya seçici butonun tam üstünde, görünmez: dokunuş doğrudan seçiciye gider. */
 .filewrap { position: relative; width: 100%; }
@@ -171,7 +242,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
 .kicker { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .winner { font-family: var(--font-display); font-weight: 800; font-size: 40px; line-height: 1; text-transform: uppercase; overflow-wrap: anywhere; }
 .time { color: var(--muted); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
-.resultcard .start { font-size: 22px; padding: 11px 14px; }
+.resultcard .start { font-size: 22px; padding: 11px 14px; margin-top: 10px; }
 .resultcard .linkbtn { font-size: 14px; margin-top: 4px; }
 
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
@@ -184,8 +255,8 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
   </section>
 
   <div id="cardsBox" class="cards">
-    <div class="card l0">
-      <div class="tag"><i></i>Ball 1</div>
+    <div id="card0" class="card l0">
+      <button id="tag0" class="tag" type="button" title="Select Ball 1 as winner"><i></i><span>Ball 1</span></button>
       <img id="prev0" class="preview" alt="Picture of ball 1">
       <input id="name0" class="name" type="text" maxlength="14" placeholder="Orange" aria-label="Name of ball 1">
       <div class="filewrap">
@@ -195,8 +266,8 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
       <p id="msg0" class="msg" role="alert" hidden></p>
       <button id="reset0" class="linkbtn" type="button">Default picture</button>
     </div>
-    <div class="card l1">
-      <div class="tag"><i></i>Ball 2</div>
+    <div id="card1" class="card l1">
+      <button id="tag1" class="tag" type="button" title="Select Ball 2 as winner"><i></i><span>Ball 2</span></button>
       <img id="prev1" class="preview" alt="Picture of ball 2">
       <input id="name1" class="name" type="text" maxlength="14" placeholder="Blue" aria-label="Name of ball 2">
       <div class="filewrap">
@@ -205,6 +276,17 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
       </div>
       <p id="msg1" class="msg" role="alert" hidden></p>
       <button id="reset1" class="linkbtn" type="button">Default picture</button>
+    </div>
+  </div>
+
+  <div id="rigBox" class="rigbox" role="group" aria-label="Winner selection">
+    <div class="righead">
+      <span>Kazanan Takım (Sadece Başlangıçta Görünür)</span>
+    </div>
+    <div class="rigopts">
+      <button id="rigFair" class="rigbtn" type="button" aria-pressed="true">Rastgele</button>
+      <button id="rig0" class="rigbtn" type="button" aria-pressed="false"><i style="background:var(--a)"></i><span id="rigLbl0">Orange</span></button>
+      <button id="rig1" class="rigbtn" type="button" aria-pressed="false"><i style="background:var(--b)"></i><span id="rigLbl1">Blue</span></button>
     </div>
   </div>
 
@@ -223,7 +305,6 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
           <img id="winImg" alt="">
           <div class="kicker">Winner</div>
           <div id="winName" class="winner"></div>
-          <div id="winTime" class="time"></div>
           <button id="againBtn" class="start" type="button">Race again</button>
           <button id="changeBtn" class="linkbtn" type="button">Change pictures</button>
         </div>
@@ -256,7 +337,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     };
   })();
 
-  var pegs = [], bars = [], spins = [];
+  var pegs = [], bars = [], spins = [], funnels = [];
   function peg(dx, y, r) {
     pegs.push({ x: dx, y: y, r: r });
     if (dx !== 0) pegs.push({ x: -dx, y: y, r: r });
@@ -285,7 +366,12 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     }
     return y + (rows - 1) * 56 + 90;
   }
-  function funnel(y) { bar(-164, y, -36, y + 60, 4); peg(0, y + 120, 9); return y + 220; }
+  function funnel(y) {
+    funnels.push({ y0: y - 35, y1: y + 75, gap: 22 });
+    bar(-164, y, -36, y + 60, 4);
+    peg(0, y + 120, 9);
+    return y + 220;
+  }
   function spinPair(y) { spin(86, y, 46, 2.4); peg(152, y, 5); return y + 150; }
   function spinCenter(y) { spin(0, y, 60, 2.0); return y + 170; }
   function shelves(y) { bar(-24, y, -100, y + 40, 4); bar(-164, y + 120, -54, y + 170, 4); return y + 260; }
@@ -294,7 +380,11 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     bar(-134, y + 6, -102, y + 32, 4);
     return y + 170;
   }
-  function finalFunnel(y) { bar(-164, y, -40, y + 60, 4); return y + 100; }
+  function finalFunnel(y) {
+    funnels.push({ y0: y - 45, y1: y + 75, gap: 24 });
+    bar(-164, y, -40, y + 60, 4);
+    return y + 100;
+  }
 
   (function buildCourse() {
     var y = 230;
@@ -327,10 +417,36 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
   } catch (e) {}
   try { document.fonts.load('800 100px "Barlow Condensed"'); } catch (e) {}
 
-  // ---- Oyuncular ve resimler ----
+  // ---- Oyuncular, resimler ve hile seçimi ----
   var players = [{ img: null, url: '', name: '' }, { img: null, url: '', name: '' }];
   var touched = [false, false];
+  var riggedWinner = -1;        // -1: adil/rastgele, 0: 1. takım, 1: 2. takım
+  var dramaPhase = 0;           // yarış içi liderlik değişimi fazı
   var mode = 'setup';           // setup | countdown | racing | finishing | result
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function pname(i) { return players[i].name || DEFAULT_NAMES[i]; }
+
+  function updateRigUI() {
+    $('rigLbl0').textContent = pname(0);
+    $('rigLbl1').textContent = pname(1);
+    $('rigFair').setAttribute('aria-pressed', String(riggedWinner === -1));
+    $('rig0').setAttribute('aria-pressed', String(riggedWinner === 0));
+    $('rig1').setAttribute('aria-pressed', String(riggedWinner === 1));
+    $('card0').classList.toggle('is-rigged', riggedWinner === 0);
+    $('card1').classList.toggle('is-rigged', riggedWinner === 1);
+  }
+  function setRiggedWinner(val) {
+    riggedWinner = val;
+    updateRigUI();
+  }
+
+  $('rigFair').addEventListener('click', function () { setRiggedWinner(-1); });
+  $('rig0').addEventListener('click', function () { setRiggedWinner(0); });
+  $('rig1').addEventListener('click', function () { setRiggedWinner(1); });
+  $('tag0').addEventListener('click', function () { setRiggedWinner(riggedWinner === 0 ? -1 : 0); });
+  $('tag1').addEventListener('click', function () { setRiggedWinner(riggedWinner === 1 ? -1 : 1); });
 
   function toUrl(c) {
     var o = document.createElement('canvas');
@@ -366,10 +482,10 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
   function setPlayer(i, canvasImg) {
     players[i].img = canvasImg;
     players[i].url = toUrl(canvasImg);
-    document.getElementById('prev' + i).src = players[i].url;
+    ($('prev0') && i === 0 ? $('prev0') : $('prev1')).src = players[i].url;
   }
   function setMsg(i, text) {
-    var m = document.getElementById('msg' + i);
+    var m = i === 0 ? $('msg0') : $('msg1');
     m.textContent = text;
     m.hidden = !text;
   }
@@ -381,8 +497,13 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     });
   } catch (e) {}
 
+  var fileInputs = [$('file0'), $('file1')];
+  var resetBtns = [$('reset0'), $('reset1')];
+  var nameInputs = [$('name0'), $('name1')];
+  var prevImgs = [$('prev0'), $('prev1')];
+  var msgEls = [$('msg0'), $('msg1')];
   [0, 1].forEach(function (i) {
-    var input = document.getElementById('file' + i);
+    var input = fileInputs[i];
     input.addEventListener('change', function () {
       var f = input.files && input.files[0];
       if (!f) return;
@@ -417,21 +538,20 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
       im.onerror = function () { try { URL.revokeObjectURL(url); } catch (e) {} viaReader(); };
       im.src = url;
     });
-    document.getElementById('reset' + i).addEventListener('click', function () {
+    resetBtns[i].addEventListener('click', function () {
       touched[i] = false;
       setMsg(i, '');
       setPlayer(i, makeDefault(i));
     });
-    document.getElementById('name' + i).addEventListener('input', function (e) {
+    nameInputs[i].addEventListener('input', function (e) {
       players[i].name = e.target.value.trim();
+      updateRigUI();
     });
   });
-  function pname(i) { return players[i].name || DEFAULT_NAMES[i]; }
 
   // ---- Yarış durumu ----
-  var balls = [], simT = 0, acc = 0, cdLeft = 0, finT = 0, winner = -1, camY = 0;
+  var balls = [], simT = 0, acc = 0, cdLeft = 0, finT = 0, winner = -1, camY = 0, resTimer = 0;
 
-  var $ = function (id) { return document.getElementById(id); };
   var canvas = $('cv'), ctx = canvas.getContext('2d');
 
   function resize() {
@@ -447,6 +567,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
   function showSetup(on) {
     $('setup').hidden = !on;
     $('cardsBox').hidden = !on;
+    $('rigBox').hidden = !on;
     $('startBtn').hidden = !on;
     $('fairNote').hidden = !on;
     $('stage').hidden = on;
@@ -455,6 +576,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
   function startRace() {
     // Taraflar rastgele atanır; başlangıç sapmaları iki tarafta aynı dağılımdadır.
     var swap = rnd() < 0.5;
+    dramaPhase = rnd() * Math.PI * 2;
     balls = [];
     for (var i = 0; i < 2; i++) {
       var dir = (i === 0) === swap ? 1 : -1;      // -1 sol, +1 sağ
@@ -481,6 +603,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
       }
     });
     simT = 0; acc = 0; cdLeft = 3.6; camY = 0; winner = -1;
+    if (resTimer) { clearTimeout(resTimer); resTimer = 0; }
     $('result').hidden = true;
     $('stageTitle').textContent = 'Race in progress';
     mode = 'countdown';
@@ -489,6 +612,7 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
   }
   function backToSetup() {
     mode = 'setup';
+    if (resTimer) { clearTimeout(resTimer); resTimer = 0; }
     $('result').hidden = true;
     showSetup(true);
   }
@@ -563,6 +687,73 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     if (b.x > lim) { b.x = lim; if (b.vx > 0) b.vx = -b.vx * 0.4; }
   }
 
+  // Hile mekaniği: Yarış boyunca başa baş ve liderliğin el değiştirdiği doğal bir
+  // rekabet kurgular; son %22'lik bölümde ise seçilen takımı hunilerin açık merkezine
+  // yönlendirip akıcı bir atakla bitiş çizgisinden birinci geçirir.
+  function applyRigging(dt) {
+    if (riggedWinner !== 0 && riggedWinner !== 1) return;
+    var w = balls[riggedWinner];
+    var l = balls[1 - riggedWinner];
+    if (w.done) return;
+
+    var trackLen = FINISH - START_Y;
+    var maxY = Math.max(w.y, l.y);
+    var prog = Math.max(0, Math.min(1, (maxY - START_Y) / trackLen));
+    var diff = w.y - l.y; // pozitifse seçilen takım önde
+
+    if (prog < 0.78) {
+      // Pistin ilk %78'inde liderlik birkaç kez el değiştirsin ve fark açılmasın
+      var wave = Math.sin(prog * Math.PI * 4.2 + dramaPhase);
+      // Son çeyreğe yaklaşırken rakibe hafif üstünlük ver ki son düzlükteki geri dönüş heyecanlı olsun
+      var desiredDiff = (prog > 0.58 && prog < 0.75) ? -32 : wave * 42;
+      var err = desiredDiff - diff;
+      var adjust = Math.max(-180, Math.min(180, err * 1.9));
+      w.vy += adjust * dt;
+      l.vy -= adjust * 0.85 * dt;
+    } else {
+      // Son %22: Seçilen takım doğal ama kararlı biçimde liderliği alır
+      var endPhase = (prog - 0.78) / 0.22; // 0 .. 1
+      var targetLead = 24 + endPhase * 52; // bitişte ~40-75 px (yaklaşık 0.2-0.35 sn) fark
+      var deficit = targetLead - diff;
+
+      if (deficit > 0) {
+        var boost = Math.min(420, 95 + deficit * 3.8);
+        w.vy += boost * dt;
+        // Rakip öndeyse veya çok yakınsa engellerde hafif hız kaybediyor gibi yavaşlat
+        if (diff < 28) {
+          var drag = Math.min(340, 75 + deficit * 3.0);
+          l.vy -= drag * dt;
+          if (l.vy > VMAX * 0.78) l.vy *= (1 - 1.6 * dt);
+        }
+      } else if (diff > 95) {
+        // Fark aşırı açılmasın, rekabet hissi korunsun
+        l.vy += Math.min(200, (diff - 95) * 2.2) * dt;
+      }
+
+      // Son düzlükteki hunilerde seçilen takımı orta açıklığa (|x| < gap) yumuşakça çek
+      for (var fi = 0; fi < funnels.length; fi++) {
+        var fn = funnels[fi];
+        if (w.y >= fn.y0 - 70 && w.y <= fn.y1) {
+          if (Math.abs(w.x) > 14) {
+            w.vx += (-w.x * 4.5 - w.vx * 1.8) * dt;
+          }
+          if (w.vy < 135) w.vy += 260 * dt;
+        }
+      }
+
+      // Bitiş çizgisine çok yakınken rakip hala öndeyse son anda geçmesini garantile
+      if (l.y > FINISH - 150 && l.y >= w.y - 16) {
+        w.vy = Math.max(w.vy, VMAX * 1.18);
+        l.vy = Math.min(l.vy, VMAX * 0.52);
+        if (Math.abs(w.x) > 18) w.x *= (1 - 3.5 * dt);
+      }
+      if (l.y >= FINISH - 6 && !w.done) {
+        l.y = FINISH - 6;
+        if (l.vy > 25) l.vy = 25;
+      }
+    }
+  }
+
   function sub(dt) {
     simT += dt;
     var i, b, crossed = [];
@@ -570,16 +761,22 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
 
     for (i = 0; i < 2; i++) {
       b = balls[i];
-      // Geride kalan yuvarlak hızlanır; kural yalnızca konum farkına bakar, iki tarafa aynı uygulanır.
+      // Geride kalan yuvarlak hızlanır; kural yalnızca konum farkına bakar.
       var kk = 1 + CATCHUP * Math.min(1, (Math.max(balls[0].y, balls[1].y) - b.y) / CATCH_DIST);
+      var vCap = VMAX * kk;
+      if (riggedWinner === i && (b.y - START_Y) / (FINISH - START_Y) > 0.78) {
+        vCap *= 1.22;
+      }
       b.vy += G * kk * dt;
-      var sp = Math.hypot(b.vx, b.vy), vm = VMAX * kk;
-      if (sp > vm) { b.vx *= vm / sp; b.vy *= vm / sp; }
+      var sp = Math.hypot(b.vx, b.vy);
+      if (sp > vCap) { b.vx *= vCap / sp; b.vy *= vCap / sp; }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       clampWalls(b);
       collideObstacles(b);
     }
+
+    applyRigging(dt);
 
     // Yuvarlaklar birbirine çarpar (eşit kütle, simetrik itme).
     var a = balls[0], c = balls[1];
@@ -605,16 +802,39 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
         b.vx *= 0.98;
       }
       b.ang += (b.vx / R) * dt * 0.7;
-      if (!b.done && b.y >= FINISH) { b.done = true; b.t = simT; crossed.push(i); }
 
+      // Hile aktifse seçilen takım takılmadan hızla kurtulur
       b.st += dt;
-      if (b.st >= 1.2) {
-        if (!b.done && b.y - b.sy < 16) b.vx += (rnd() - 0.5) * 240;
+      var stuckLimit = (riggedWinner === i) ? 0.65 : 1.2;
+      if (b.st >= stuckLimit) {
+        if (!b.done && b.y - b.sy < 16) {
+          var kick = (rnd() - 0.5) * 240;
+          if (riggedWinner === i) {
+            kick = -b.x * 2.2 + (rnd() - 0.5) * 140;
+            b.vy = Math.max(b.vy, 110);
+          }
+          b.vx += kick;
+        }
         b.sy = b.y; b.st = 0;
+      }
+
+      if (!b.done && b.y >= FINISH) {
+        if ((riggedWinner === 0 || riggedWinner === 1) && i !== riggedWinner && !balls[riggedWinner].done) {
+          b.y = FINISH - 4;
+          b.vy = Math.min(b.vy, 15);
+        } else {
+          b.done = true;
+          b.t = simT;
+          crossed.push(i);
+        }
       }
     }
     if (winner < 0 && crossed.length) {
-      winner = crossed.length > 1 ? (rnd() < 0.5 ? crossed[0] : crossed[1]) : crossed[0];
+      if (riggedWinner === 0 || riggedWinner === 1) {
+        winner = riggedWinner;
+      } else {
+        winner = crossed.length > 1 ? (rnd() < 0.5 ? crossed[0] : crossed[1]) : crossed[0];
+      }
       mode = 'finishing';
       finT = 1.4;
     }
@@ -627,9 +847,15 @@ canvas { display: block; width: 100%; aspect-ratio: 360 / 600; border: 1px solid
     $('winImg').src = players[w].url;
     $('winImg').alt = pname(w);
     $('winName').textContent = pname(w);
-    $('winTime').textContent = balls[w].t.toFixed(2) + ' s';
+    $('againBtn').hidden = true;
+    $('changeBtn').hidden = true;
     $('result').hidden = false;
     $('stageTitle').textContent = 'Race over';
+    if (resTimer) clearTimeout(resTimer);
+    resTimer = setTimeout(function () {
+      $('againBtn').hidden = false;
+      $('changeBtn').hidden = false;
+    }, 3000);
   }
 
   // ---- Çizim ----
